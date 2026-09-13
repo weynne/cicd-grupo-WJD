@@ -20,7 +20,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
 | 07 | `evidencia_07_pipeline_verde_main.png` | Os seis jobs concluídos na `main`, deploy incluído | Actions → run #3 | 1 | ✅ |
-| 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios | Settings → Rules → `main protection` | — | ⏳ |
+| 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios e `Deploy to staging` fora da lista | Settings → Rules → `main protection` | — | ✅ |
 | 09 | `evidencia_09_cache_hit.png` | A linha `Cache restored from key:` e a queda no tempo do job | Actions → segundo run → step *Cache pip downloads* | 4 | ⏳ PR do card |
 | 10 | `evidencia_10_badge_verde.png` | Badge do CI verde no topo do README | Code → README na `main` | — | ⏳ após PR do README |
 | 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
