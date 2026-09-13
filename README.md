@@ -200,13 +200,13 @@ repositório.
 
 | # | Evidência | Onde |
 | --- | --- | --- |
-| 1 | Pipeline completo verde na `main` | *(link do run)* |
-| 2 | PR com merge **bloqueado** por gate vermelho | *(link do PR da demo)* |
-| 3 | PR corrigido, verde e mergeado | *(link do PR)* |
-| 4 | Três jobs da matrix em paralelo + cache hit no segundo run | *(link do run)* |
-| 5 | `Deploy to staging` aguardando aprovação humana | *(link do run)* |
-| 6 | Relatório do Trivy na aba Security → Code scanning | *(link)* |
-| 7 | Notificação de sucesso e de falha no canal do Discord | *(captura)* |
+| 1 | Pipeline completo verde na `main` | [run #11](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34761566278) · [captura](evidencias/evidencia_07_pipeline_verde_main.png) |
+| 2 | PR com merge **bloqueado** por gate vermelho | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [caixa de merge](evidencias/evidencia_12_merge_bloqueado.png) · [step do Trivy](evidencias/evidencia_14_trivy_bloqueio.png) · [pip-audit](evidencias/evidencia_13_pip_audit_cves.txt) |
+| 3 | O mesmo PR corrigido, com os checks verdes | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [captura](evidencias/evidencia_11_pr_corrigido_verde.png) |
+| 4 | Três jobs da matrix em paralelo + cache hit no segundo run | [run #3](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34727936018) · [matrix](evidencias/evidencia_02_matrix_paralela.png) · [run #4](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34731638025) · [cache](evidencias/evidencia_09_cache_hit.png) |
+| 5 | `Deploy to staging` aguardando aprovação humana | [run #3](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34727936018) · [aguardando](evidencias/evidencia_05_deploy_waiting.png) · [aprovado](evidencias/evidencia_06_deploy_aprovado.png) |
+| 6 | Relatório do Trivy no code scanning | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [captura](evidencias/evidencia_03_trivy_security.png) |
+| 7 | Notificação de sucesso e de falha no canal do Discord | [sucesso](evidencias/evidencia_04_discord_sucesso.png) · [falha e recuperação](evidencias/evidencia_15_discord_falha.png) |
 
 ---
 
