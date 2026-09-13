@@ -15,7 +15,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 |---|---|---|---|---|---|
 | 01 | `evidencia_01_ci_checks_verdes.png` | Os quatro checks `Required` verdes e o merge bloqueado por revisão de code owner | PR #2 → Conversation | — | ✅ |
 | 02 | `evidencia_02_matrix_paralela.png` | Os três jobs da matrix expandidos, com a duração de cada um | Actions → run #3 → grafo com *Show all jobs* | 4 | ✅ |
-| 03 | `evidencia_03_trivy_security.png` | CVEs do Trivy anotados pelo code scanning na linha do `requirements.txt` | PR do ensaio (#7) → Conversation | 6 | ✅ |
+| 03 | `evidencia_03_trivy_security.png` | *3 new alerts* do Trivy: os três CVEs `MEDIUM` anotados na linha 3 do `requirements.txt` | PR do ensaio (#7) → Checks → Code scanning results / Trivy | 6 | ✅ |
 | 04 | `evidencia_04_discord_sucesso.png` | Dois cards verdes: um de pull request, um de push na `main` | Discord → `#geral` | 7 | ✅ |
 | 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
