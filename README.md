@@ -93,8 +93,8 @@ flowchart TD
 
 `Lint` e `test` rodam **em paralelo** — `needs:` é o que cria ordem no GitHub
 Actions, e só `deploy-staging` e `notify` declaram um. As setas pontilhadas são o
-`if: always()`: o `notify` roda mesmo quando o lint ou os testes falharam, que é
-justamente quando o time precisa saber.
+caminho da falha: com `if: always()`, o `notify` roda mesmo quando o lint ou os
+testes reprovam, que é justamente quando o time precisa saber.
 
 ### O que acontece dentro de cada job da matrix
 
@@ -117,10 +117,11 @@ flowchart LR
 ```
 
 O Trivy vem **antes** do pytest de propósito: se a dependência já está
-comprometida, não faz sentido gastar minutos rodando a suíte. O upload do SARIF
-tem `if: always()` porque o step do Trivy sai com código 1 quando acha algo — sem
-isso, o relatório nunca chegaria à aba Security exatamente quando há o que
-reportar.
+comprometida, não faz sentido gastar minutos rodando a suíte. Quando ele reprova,
+o job já está vermelho e `pytest` e `pip-audit` ficam *skipped*. O upload do SARIF
+é a exceção: tem `if: always()` porque o step do Trivy sai com código 1 quando
+acha algo — sem isso, o relatório nunca chegaria ao code scanning exatamente
+quando há o que reportar.
 
 ### Os gates
 
@@ -149,7 +150,8 @@ git push -u origin feat/minha-mudanca
 
 Abra o PR pela interface do GitHub. O workflow dispara imediatamente, e a aba
 **Checks** do PR mostra o status ao vivo. O botão de merge só libera quando os
-quatro checks obrigatórios ficam verdes.
+quatro checks obrigatórios ficam verdes **e** um code owner que não seja o autor
+aprova o PR.
 
 ### 2. Reproduzir a demonstração de shift-left
 
@@ -160,14 +162,15 @@ gate reprovar antes do merge.
 git checkout main && git pull
 git checkout -b fix/requests-cve
 sed -i 's/requests==2.33.0/requests==2.31.0/' requirements.txt
-git commit -am "fix(deps): downgrade requests to reproduce a known CVE"
+git commit -am "chore: demonstrate the shift-left security gate"
 git push -u origin fix/requests-cve
 ```
 
-Abra o PR. `Lint` e `pytest` seguem **verdes** — o problema está isolado na
-dependência — e os dois gates de segurança ficam **vermelhos**: o Trivy no step
-de scan e o `pip-audit` apontando os três CVEs. Com a branch protection ativa, o
-merge fica **bloqueado**, e uma notificação vermelha chega no Discord.
+Abra o PR. O `Lint` segue **verde** — o código não mudou — e os três jobs de
+teste ficam **vermelhos**: o Trivy encontra três CVEs `MEDIUM` no `requests` e
+encerra o job com código 1, antes do `pytest`. Os alertas aparecem anotados na
+linha alterada do `requirements.txt`, o merge fica **bloqueado** e uma
+notificação vermelha chega no Discord.
 
 Para corrigir, na **mesma branch**:
 
@@ -177,18 +180,21 @@ git commit -am "fix(deps): bump requests to 2.33.0 to clear the CVEs"
 git push
 ```
 
-O CI volta ao verde e o merge libera. O problema foi pego no PR, antes do merge,
-sem ninguém rodar a aplicação e sem chegar a produção. Custo do fix: 1x.
+Os três checks voltam ao verde e os alertas passam a *Fixed*; o merge passa a
+depender só da revisão de code owner. O problema foi pego no PR, antes do merge,
+sem ninguém rodar a aplicação.
 
 > [!IMPORTANT]
-> Bumpar só para `2.32.x` **não** zera todos os CVEs. O próprio output do
-> `pip-audit` mostra três versões de correção diferentes — 2.32.0, 2.32.4 e
-> 2.33.0. Nem sempre "atualizar um pouco" basta.
+> Subir só para `2.32.x` **não** zera os três CVEs. Os alertas do Trivy — e o
+> `pip-audit`, rodado sobre o mesmo arquivo — apontam três versões de correção
+> diferentes: 2.32.0, 2.32.4 e 2.33.0. Nem sempre "atualizar um pouco" basta.
 
 ### 3. Aprovar o deploy em staging
 
 Logo após um merge na `main`, o job `Deploy to staging (dummy)` aparece como
 **Waiting**. Vá em **Actions → o run → Review deployments → Approve and deploy**.
+Quem aprova precisa ser um revisor do environment diferente de quem clicou em
+*Merge* — ver [Environment](#environment).
 
 O job não faz deploy de verdade: o que está sendo exercitado é o gate de
 aprovação humana, e a aprovação fica registrada no histórico de deployments do
@@ -262,12 +268,16 @@ O que existe fora do código, e sem o que o pipeline vira decoração.
 
 | Regra | Por quê |
 | --- | --- |
-| Require a pull request before merging | Ninguém commita direto na `main` |
+| Require a pull request before merging, com 1 aprovação | Ninguém commita direto na `main` |
+| Dismiss stale pull request approvals | Um commit novo derruba a aprovação anterior |
 | Require review from Code Owners | Ativa o efeito do `CODEOWNERS` |
+| Merge method: somente *squash* | Um commit por PR na `main` |
 | Require status checks to pass | **É este item que bloqueia o merge** |
-| Require branches to be up to date | Força integrar a `main` antes de mergear |
+| Require branches to be up to date | Os checks precisam ter rodado sobre a `main` atual, não sobre uma antiga |
+| Require linear history | Sem merge commits na `main` |
 | Block force pushes | Preserva o histórico |
-| Do not allow bypassing | Vale para o owner também |
+| Restrict deletions | A `main` não pode ser apagada |
+| Lista de bypass vazia | Vale para o owner também |
 
 ### Required status checks
 
@@ -294,7 +304,7 @@ invalida a lista do ruleset.
 > lista estiver vazia, abra um PR, deixe o CI rodar e volte para marcá-los.
 
 O check `Code scanning results / Trivy` aparece sozinho, criado pelo upload do
-SARIF, e reporta *"no new alerts in code changed by this pull request"*. Deixamos
+SARIF, e reporta os alertas novos no código alterado pelo pull request. Deixamos
 fora dos obrigatórios de propósito: ele mede **alertas novos no diff**, enquanto
 o gate real do Trivy é o `exit-code: 1` dentro do job, que mede
 **vulnerabilidade existente**. Torná-lo obrigatório colocaria duas semânticas
@@ -420,6 +430,7 @@ docker run --rm -p 8080:5000 -e APP_COLOR=blue -e SESSION_KEY=local todolist:dev
 ├── pyproject.toml                          # configuração do ruff
 ├── Dockerfile                              # imagem da aplicação
 ├── k8s/                                    # manifestos de deploy, fora do escopo desta entrega
+├── evidencias/                             # capturas da entrega, com índice próprio
 └── docs/                                   # referências do starter-kit
 ```
 
@@ -431,7 +442,7 @@ outro via `uses:` e nunca disparado por evento próprio.
 ## Arquivo por arquivo
 
 O starter-kit entrega a aplicação e os manifestos prontos. O grupo criou ou
-alterou **cinco** arquivos — estes:
+alterou apenas estes arquivos:
 
 | Arquivo | O que fizemos | Como |
 | --- | --- | --- |
@@ -439,7 +450,8 @@ alterou **cinco** arquivos — estes:
 | `.github/workflows/ci.yml` | criado | renomeado de `ci.yml.example` |
 | `.github/workflows/_reusable-test.yml` | criado | renomeado de `_reusable-test.yml.example` |
 | `README.md` | substituído | era o README do professor |
-| `requirements.txt` | alterado e revertido | só na demonstração de shift-left |
+| `evidencias/` | criado | capturas da entrega, com índice |
+| `requirements.txt` | alterado e revertido | só nas branches de demonstração, nunca na `main` |
 
 > [!NOTE]
 > O GitHub Actions só executa arquivos `.yml` e `.yaml` dentro de
@@ -492,7 +504,7 @@ só sugere revisores sem obrigar ninguém.
 git mv .github/workflows/ci.yml.example .github/workflows/ci.yml
 ```
 
-O workflow principal: 4 jobs, 198 linhas. É o **chamador** — concentra gatilhos,
+O workflow principal: 4 jobs, 264 linhas. É o **chamador** — concentra gatilhos,
 permissões e orquestração, e delega os steps de teste ao reusable.
 
 | Bloco | O que faz |
@@ -888,17 +900,18 @@ grep -n "uses: ./.github/workflows/_reusable-test.yml" .github/workflows/ci.yml
 # Nenhuma action presa a tag mutável — todas fixadas por SHA de commit:
 grep -hE 'uses: [a-z].*@v[0-9]' .github/workflows/*.yml || echo "todas pinadas"
 
-# A mesma varredura de segredos que o professor faz no histórico:
+# A mesma varredura de segredos que o professor faz no histórico. As únicas
+# ocorrências esperadas são o próprio padrão, citado neste README, e o exemplo
+# de chave SSH em docs/cd-*.md, do starter-kit — nenhuma URL de webhook:
 git log -p --all | grep -nE 'discord\.com/api/webhooks|hooks\.slack\.com|dckr_pat_|AKIA|BEGIN OPENSSH PRIVATE KEY'
 ```
 
 Na interface do GitHub:
 
-- **Actions** — o run do último push na `main` com quatro checks verdes
-- **Security → Code scanning** — relatórios do Trivy, um por versão da matrix
-- Em um PR — botão de merge cinza enquanto algum check obrigatório estiver vermelho
-- Após merge na `main` — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
-- **Discord** — mensagem verde no merge e vermelha no PR da demo, ambas linkando o run
+- **Actions** — o run do último push na `main` com os quatro checks verdes
+- **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
+- **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
+- **Discord** — card verde a cada run concluído e vermelho quando um gate reprova, com link para o run
 
 ---
 
@@ -919,6 +932,12 @@ escrita ao repositório, ou o convite de collaborator ainda não foi aceito. A r
 **Um PR não consegue ser aprovado por ninguém.** O autor não pode aprovar o
 próprio PR. Se ele for o único code owner do caminho tocado, a mudança precisa ser
 proposta por outra pessoa.
+
+**Um commit na `main` saiu com a mensagem fora do padrão.** O ruleset só permite
+*squash*, e no squash o GitHub usa o **título do PR** como mensagem do commit —
+título que vem preenchido com o nome da branch quando ela tem mais de um commit.
+Corrigir depois exigiria force push, que o ruleset bloqueia; o que evita o
+problema é revisar o título ao abrir o PR.
 
 **O job `notify` fica verde mas nada chega no canal.** O secret
 `NOTIFY_WEBHOOK_URL` não está cadastrado, e o guard `if: env.WEBHOOK_URL != ''`
