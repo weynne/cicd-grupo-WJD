@@ -80,12 +80,13 @@ flowchart TD
 
     D{"push na main?"}
     D -->|sim| S["Deploy to staging<br>pausa até aprovação humana"]
-    D -->|"não — é pull request"| K["deploy-staging<br>skipped"]
+    D -->|"não — pull request ou tag"| K["deploy-staging<br>skipped"]
 
-    S --> N["Notify pipeline result"]
+    N["Notify pipeline result<br>if: always()"]
+    S --> N
     K --> N
-    L -.->|"if: always()"| N
-    M -.->|"if: always()"| N
+    L -.->|"se falhar"| N
+    M -.->|"se falhar"| N
 
     N --> W(["webhook do Discord"])
 ```
