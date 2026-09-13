@@ -772,7 +772,7 @@ máquina: é sobre feedback rápido no PR.
 ```yaml
       - name: Upload Trivy report to the Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@42c378ff…
+        uses: github/codeql-action/upload-sarif@b96794f0…
         with:
           sarif_file: trivy-results.sarif
           category: trivy-python-${{ inputs.python-version }}
@@ -913,6 +913,10 @@ pula o envio de propósito. Confira em `Settings → Secrets and variables → A
 **`upload-sarif` retorna 403.** Code scanning em repositório privado exige GitHub
 Advanced Security. Ver [Divergências](#divergências-em-relação-ao-enunciado).
 
+**`Cache save failed` numa perna da matrix.** Aviso, não erro. As três pernas
+terminam quase juntas e o GitHub recusa gravações concorrentes de cache. A
+execução seguinte restaura pelo `restore-keys` e o build não é afetado.
+
 **O workflow não dispara.** Arquivos `.yml.example` são inertes: o GitHub Actions
 só executa `.yml` e `.yaml` dentro de `.github/workflows/`.
 
@@ -932,10 +936,10 @@ Actions estão pinadas por SHA de commit no YAML, com a tag em comentário.
 | Testes | `pytest` | 8.3.3 | reusable |
 | Auditoria de dependências | `pip-audit` | 2.7.3 | reusable |
 | Scan de filesystem e SO | `aquasecurity/trivy-action` | v0.36.0 | reusable |
-| Envio do SARIF | `github/codeql-action/upload-sarif` | v3.38.0 | reusable |
-| Checkout | `actions/checkout` | v4.2.2 | `lint` + reusable |
-| Runtime | `actions/setup-python` | v5.6.0 | `lint` + reusable |
-| Cache | `actions/cache` | v4.2.4 | `lint` + reusable |
+| Envio do SARIF | `github/codeql-action/upload-sarif` | v4.38.0 | reusable |
+| Checkout | `actions/checkout` | v7.0.1 | `lint` + reusable |
+| Runtime | `actions/setup-python` | v7.0.0 | `lint` + reusable |
+| Cache | `actions/cache` | v6.1.0 | `lint` + reusable |
 | Versões testadas | Python 3.10, 3.11, 3.12 | via `vars.PYTHON_VERSIONS` | matrix |
 | Notificação | webhook do Discord via `curl` | — | job `notify` |
 | Aprovação humana | environment do GitHub com *required reviewer* | — | job `deploy-staging` |
@@ -956,10 +960,18 @@ o valor da matrix, e o nome do job dentro do reusable.
 
 **Actions fixadas por SHA de commit, não por tag.** Tags são mutáveis: `@v4` hoje
 pode apontar para outro commit amanhã, dando a quem comprometer a conta do
-mantenedor execução de código no pipeline, com acesso aos secrets. Usamos as
-versões dos esqueletos do starter-kit — `checkout@v4.2.2`, `setup-python@v5.6.0`,
-`cache@v4.2.4` — fixadas por hash, com a tag em comentário para manter a linha
-legível.
+mantenedor execução de código no pipeline, com acesso aos secrets. Cada `uses:`
+aponta para o commit imutável do release, com a tag em comentário para manter a
+linha legível.
+
+**Pinar não é congelar.** As versões dos esqueletos do starter-kit
+(`checkout@v4.2.2`, `setup-python@v5.6.0`, `cache@v4.2.4`) rodam em **Node.js 20**,
+que o GitHub deprecou — cada execução reportava oito avisos dizendo que as actions
+estavam sendo forçadas para o Node.js 24, e o `upload-sarif` avisava que a CodeQL
+Action v3 sai em dezembro de 2026. Subimos as quatro para o release atual, cada
+uma no seu SHA. É a outra metade da prática: fixar o hash protege contra a tag
+mudar debaixo dos pés, acompanhar o release protege contra rodar num runtime que
+o fornecedor já abandonou.
 
 **Atenção à tag anotada do `trivy-action`.** Diferente das `actions/*`, a tag
 `v0.36.0` do `aquasecurity/trivy-action` é **anotada**: o SHA que o `git ls-remote`
@@ -1001,8 +1013,8 @@ registry e um artefato sem destino, e o enunciado desta entrega não pede.
 
 ## Divergências em relação ao enunciado
 
-Três pontos em que este projeto divergiu da letra do enunciado. Todos preservam o
-requisito de fundo, e todos foram medidos antes de decidir.
+Quatro pontos em que este projeto divergiu da letra do enunciado. Todos preservam
+o requisito de fundo, e todos foram medidos antes de decidir.
 
 ### 1. Repositório público em vez de privado
 
@@ -1060,6 +1072,17 @@ merge**, está atendido com folga: ele bloqueia mais, não menos.
 preferência: sem o primeiro, o relatório nunca chega à aba Security quando há
 vulnerabilidade; sem o segundo, os três uploads do mesmo commit se sobrescrevem e
 podem colidir. Ambos estão comentados no próprio YAML.
+
+### 4. Actions no release atual, não nas versões dos esqueletos
+
+Os esqueletos usam `checkout@v4.2.2`, `setup-python@v5.6.0` e `cache@v4.2.4`.
+Rodamos as três no release atual, e o `upload-sarif` na CodeQL Action v4.
+
+Também foi medição: com as versões dos esqueletos, **toda execução reportava oito
+avisos** no painel de *Annotations* — Node.js 20 deprecado, actions forçadas para
+o Node.js 24, e a CodeQL Action v3 saindo em dezembro de 2026. A prática que o
+material ensina, fixar por SHA de commit, continua inteira; o que mudou foi o
+release fixado.
 
 ---
 
