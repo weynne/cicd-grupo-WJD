@@ -23,11 +23,11 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios e `Deploy to staging` fora da lista | Settings → Rules → `main protection` | — | ✅ |
 | 09 | `evidencia_09_cache_hit.png` | `Cache hit`, `Cache restored successfully` e a chave restaurada — 25 MB a 18,9 MB/s | PR #3 → job `test (3.11)` → step *Cache pip downloads* | 4 | ✅ |
 | 10 | `evidencia_10_badge_verde.png` | Badge `CI passing` verde no topo do README da `main` | Code → README na `main` | — | ✅ |
-| 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
+| 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR depois do bump: alertas do Trivy marcados *Fixed* e os quatro checks *Required* verdes | PR do ensaio (#7) → Conversation | 3 | ✅ |
 | 12 | `evidencia_12_merge_bloqueado.png` | Três checks de teste vermelhos marcados *Required* e o botão de merge cinza | PR do ensaio (#7) → caixa de merge | 2 | ✅ |
 | 13 | `evidencia_13_pip_audit_cves.txt` | Os três CVEs do `requests` e as versões de correção | `pip-audit` local, mesma versão do CI — no CI o step fica *skipped* porque o Trivy reprova antes | 2 | ✅ |
 | 14 | `evidencia_14_trivy_bloqueio.png` | Step do Trivy saindo com `exit code 1`, SARIF enviado mesmo assim, `pytest` e `pip-audit` pulados | Run #12 → job `test (3.11)` | 2 | ✅ |
-| 15 | `evidencia_15_discord_falha.png` | Card vermelho do run #12, com `❌` nos testes | Discord → `#geral` | 7 | ✅ |
+| 15 | `evidencia_15_discord_falha.png` | Card vermelho do run #12 e o verde do run #13, no mesmo PR | Discord → `#geral` | 7 | ✅ |
 
 ---
 
@@ -83,6 +83,11 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 > tudo do PyPI de novo. A mesma captura mostra a ordem dos steps do reusable —
 > Trivy, upload do SARIF, pytest e pip-audit.
 
+**11 — PR corrigido**
+> A linha do tempo mostra o ciclo inteiro: o commit vermelho, as três anotações do
+> Trivy agora marcadas *Fixed* e o commit da correção verde. O merge continua
+> bloqueado só pela revisão de code owner — os gates automáticos liberaram.
+
 **12 — merge bloqueado**
 > Os três checks de teste estão vermelhos e marcados *Required*, e o botão de
 > merge fica cinza. O `Lint` passou: o que reprova é a dependência, não o código.
@@ -90,6 +95,7 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 **15 — card vermelho**
 > O mesmo card da evidência 04, agora com `❌` no gate de testes. O `Lint` verde e
 > o deploy `skipped` mostram onde está o problema antes de alguém abrir o log.
+> Logo abaixo, o card verde do run seguinte, no mesmo PR, fecha o ciclo da correção.
 
 **14 — o gate em ação**
 > `exit-code: '1'` é o que transforma o scan em gate: o step termina com
