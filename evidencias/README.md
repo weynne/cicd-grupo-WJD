@@ -16,7 +16,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 01 | `evidencia_01_ci_checks_verdes.png` | Os quatro checks `Required` verdes e o merge bloqueado por revisão de code owner | PR #2 → Conversation | — | ✅ |
 | 02 | `evidencia_02_matrix_paralela.png` | Os três jobs da matrix expandidos, com a duração de cada um | Actions → run #3 → grafo com *Show all jobs* | 4 | ✅ |
 | 03 | `evidencia_03_trivy_security.png` | Alertas do Trivy com as três categorias `trivy-python-3.1x` | Security and quality → Code scanning | 6 | ⏳ PR da demo |
-| 04 | `evidencia_04_discord_sucesso.png` | Card verde no canal, com commit, SHA e os três gates | Discord → `#geral` | 7 | ⏳ após PR do card |
+| 04 | `evidencia_04_discord_sucesso.png` | Dois cards verdes: um de pull request, um de push na `main` | Discord → `#geral` | 7 | ✅ |
 | 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
 | 07 | `evidencia_07_pipeline_verde_main.png` | Os seis jobs concluídos na `main`, deploy incluído | Actions → run #3 | 1 | ✅ |
@@ -68,6 +68,13 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 > As três categorias `trivy-python-3.10`, `3.11` e `3.12` vêm do parâmetro
 > `category` do `upload-sarif`. Sem ele, os três uploads do mesmo commit se
 > sobrescreveriam e só uma perna da matrix apareceria.
+
+**04 — os dois cards do Discord**
+> O card de cima é do pull request, o de baixo é do push na `main` depois do merge.
+> A diferença no campo `Deploy staging` — `⏭️ skipped` contra `✅ success` — mostra
+> as duas decisões do `notify` numa imagem só: o `if:` que restringe o deploy a
+> push na `main`, e o cálculo que trata `skipped` como neutro, para um pull request
+> não reportar falha.
 
 **09 — cache hit**
 > A chave é `Linux-pip-<versão>-<hash de requirements*.txt>`. Como o hash não mudou
