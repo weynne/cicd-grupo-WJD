@@ -15,7 +15,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 |---|---|---|---|---|---|
 | 01 | `evidencia_01_ci_checks_verdes.png` | Os quatro checks `Required` verdes e o merge bloqueado por revisão de code owner | PR #2 → Conversation | — | ✅ |
 | 02 | `evidencia_02_matrix_paralela.png` | Os três jobs da matrix expandidos, com a duração de cada um | Actions → run #3 → grafo com *Show all jobs* | 4 | ✅ |
-| 03 | `evidencia_03_trivy_security.png` | Alertas do Trivy com as três categorias `trivy-python-3.1x` | Security and quality → Code scanning | 6 | ⏳ PR da demo |
+| 03 | `evidencia_03_trivy_security.png` | CVEs do Trivy anotados pelo code scanning na linha do `requirements.txt` | PR do ensaio (#7) → Conversation | 6 | ✅ |
 | 04 | `evidencia_04_discord_sucesso.png` | Dois cards verdes: um de pull request, um de push na `main` | Discord → `#geral` | 7 | ✅ |
 | 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
@@ -24,10 +24,10 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 09 | `evidencia_09_cache_hit.png` | `Cache hit`, `Cache restored successfully` e a chave restaurada — 25 MB a 18,9 MB/s | PR #3 → job `test (3.11)` → step *Cache pip downloads* | 4 | ✅ |
 | 10 | `evidencia_10_badge_verde.png` | Badge `CI passing` verde no topo do README da `main` | Code → README na `main` | — | ✅ |
 | 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
-| 12 | `evidencia_12_merge_bloqueado.png` | Check vermelho e botão de merge cinza com *Required statuses must pass* | PR da demo | 2 | ⏳ PR da demo |
+| 12 | `evidencia_12_merge_bloqueado.png` | Três checks de teste vermelhos marcados *Required* e o botão de merge cinza | PR do ensaio (#7) → caixa de merge | 2 | ✅ |
 | 13 | `evidencia_13_pip_audit_cves.txt` | Os três CVEs do `requests` e as versões de correção | `pip-audit` local, mesma versão do CI — no CI o step fica *skipped* porque o Trivy reprova antes | 2 | ✅ |
 | 14 | `evidencia_14_trivy_bloqueio.png` | O Trivy reprovando os mesmos CVEs, com severidade `MEDIUM` | PR da demo → step do Trivy | 6 | ⏳ PR da demo |
-| 15 | `evidencia_15_discord_falha.png` | Card vermelho no canal, com o gate que falhou | Discord → `#geral` | 7 | ⏳ PR da demo |
+| 15 | `evidencia_15_discord_falha.png` | Card vermelho do run #12, com `❌` nos testes | Discord → `#geral` | 7 | ✅ |
 
 ---
 
@@ -64,10 +64,11 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 > A linha `Target: ***` é o secret de environment `STAGING_URL` mascarado pelo
 > runner. O valor não aparece no log nem para quem tem acesso ao repositório.
 
-**03 — Trivy no Code scanning**
-> As três categorias `trivy-python-3.10`, `3.11` e `3.12` vêm do parâmetro
-> `category` do `upload-sarif`. Sem ele, os três uploads do mesmo commit se
-> sobrescreveriam e só uma perna da matrix apareceria.
+**03 — Trivy anotado no pull request**
+> O `upload-sarif` entrega o relatório ao code scanning, que comenta cada CVE na
+> linha do `requirements.txt` que o introduziu. O upload roda mesmo com o Trivy
+> reprovado — é o `if: always()` —, e por isso o achado aparece justamente
+> quando há o que reportar.
 
 **04 — os dois cards do Discord**
 > O card de cima é do pull request, o de baixo é do push na `main` depois do merge.
@@ -81,6 +82,14 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 > desde o run anterior, o cache bateu: 25 MB restaurados em 2 s, em vez de baixar
 > tudo do PyPI de novo. A mesma captura mostra a ordem dos steps do reusable —
 > Trivy, upload do SARIF, pytest e pip-audit.
+
+**12 — merge bloqueado**
+> Os três checks de teste estão vermelhos e marcados *Required*, e o botão de
+> merge fica cinza. O `Lint` passou: o que reprova é a dependência, não o código.
+
+**15 — card vermelho**
+> O mesmo card da evidência 04, agora com `❌` no gate de testes. O `Lint` verde e
+> o deploy `skipped` mostram onde está o problema antes de alguém abrir o log.
 
 **13 e 14 — os dois gates de segurança**
 > O `pip-audit` consulta a base de advisories do PyPI/OSV; o Trivy varre o
