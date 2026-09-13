@@ -21,7 +21,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
 | 07 | `evidencia_07_pipeline_verde_main.png` | Os seis jobs concluídos na `main`, deploy incluído | Actions → run #3 | 1 | ✅ |
 | 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios e `Deploy to staging` fora da lista | Settings → Rules → `main protection` | — | ✅ |
-| 09 | `evidencia_09_cache_hit.png` | A linha `Cache restored from key:` e a queda no tempo do job | Actions → segundo run → step *Cache pip downloads* | 4 | ⏳ PR do card |
+| 09 | `evidencia_09_cache_hit.png` | `Cache hit`, `Cache restored successfully` e a chave restaurada — 25 MB a 18,9 MB/s | PR #3 → job `test (3.11)` → step *Cache pip downloads* | 4 | ✅ |
 | 10 | `evidencia_10_badge_verde.png` | Badge do CI verde no topo do README | Code → README na `main` | — | ⏳ após PR do README |
 | 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
 | 12 | `evidencia_12_merge_bloqueado.png` | Check vermelho e botão de merge cinza com *Required statuses must pass* | PR da demo | 2 | ⏳ PR da demo |
@@ -68,6 +68,12 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 > As três categorias `trivy-python-3.10`, `3.11` e `3.12` vêm do parâmetro
 > `category` do `upload-sarif`. Sem ele, os três uploads do mesmo commit se
 > sobrescreveriam e só uma perna da matrix apareceria.
+
+**09 — cache hit**
+> A chave é `Linux-pip-<versão>-<hash de requirements*.txt>`. Como o hash não mudou
+> desde o run anterior, o cache bateu: 25 MB restaurados em 2 s, em vez de baixar
+> tudo do PyPI de novo. A mesma captura mostra a ordem dos steps do reusable —
+> Trivy, upload do SARIF, pytest e pip-audit.
 
 **13 e 14 — os dois gates de segurança**
 > O `pip-audit` consulta a base de advisories do PyPI/OSV; o Trivy varre o
