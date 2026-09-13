@@ -200,7 +200,7 @@ repositório.
 
 | # | Evidência | Onde |
 | --- | --- | --- |
-| 1 | Pipeline completo verde na `main` | [run #11](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34761566278) · [captura](evidencias/evidencia_07_pipeline_verde_main.png) |
+| 1 | Pipeline completo verde na `main` | [run #3](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34727936018) · [captura](evidencias/evidencia_07_pipeline_verde_main.png) |
 | 2 | PR com merge **bloqueado** por gate vermelho | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [caixa de merge](evidencias/evidencia_12_merge_bloqueado.png) · [step do Trivy](evidencias/evidencia_14_trivy_bloqueio.png) · [pip-audit](evidencias/evidencia_13_pip_audit_cves.txt) |
 | 3 | O mesmo PR corrigido, com os checks verdes | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [captura](evidencias/evidencia_11_pr_corrigido_verde.png) |
 | 4 | Três jobs da matrix em paralelo + cache hit no segundo run | [run #3](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34727936018) · [matrix](evidencias/evidencia_02_matrix_paralela.png) · [run #4](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34731638025) · [cache](evidencias/evidencia_09_cache_hit.png) |

