@@ -204,11 +204,16 @@ jobs:
         if: env.WEBHOOK_URL != ''
         env:
           WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           ACTOR_URL: ${{ github.server_url }}/${{ github.actor }}
           AVATAR_URL: ${{ github.server_url }}/${{ github.actor }}.png?size=64
-          SHA: ${{ github.sha }}
+          # On a pull_request event github.sha is the throwaway merge commit the
+          # runner builds under refs/pull/N/merge: it belongs to no branch and a
+          # link to it lands on an orphan commit page. head.sha is the tip of the
+          # branch under review, which is the commit a reader expects. The ||
+          # falls back for push and tag, where head.sha does not exist.
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -222,8 +227,10 @@ jobs:
           DEPLOY: ${{ steps.msg.outputs.deploy }}
         run: |
           # Headline of the card: what changed, which commit, what triggered it.
-          description=$(printf '**%s**\n[`%s`](%s) · %s' \
-            "$SUBJECT" "${SHA:0:7}" "$COMMIT_URL" "$TRIGGER")
+          # The commit URL is built here so that SHA stays the single source of
+          # truth for both the link and the text next to it.
+          description=$(printf '**%s**\n[`%s`](%s/commit/%s) · %s' \
+            "$SUBJECT" "${SHA:0:7}" "$REPO_URL" "$SHA" "$TRIGGER")
 
           jq -n \
             --arg     title     "${STATUS_ICON} CI ${STATUS} · ${REPO}" \
