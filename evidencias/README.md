@@ -26,7 +26,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
 | 12 | `evidencia_12_merge_bloqueado.png` | Três checks de teste vermelhos marcados *Required* e o botão de merge cinza | PR do ensaio (#7) → caixa de merge | 2 | ✅ |
 | 13 | `evidencia_13_pip_audit_cves.txt` | Os três CVEs do `requests` e as versões de correção | `pip-audit` local, mesma versão do CI — no CI o step fica *skipped* porque o Trivy reprova antes | 2 | ✅ |
-| 14 | `evidencia_14_trivy_bloqueio.png` | O Trivy reprovando os mesmos CVEs, com severidade `MEDIUM` | PR da demo → step do Trivy | 6 | ⏳ PR da demo |
+| 14 | `evidencia_14_trivy_bloqueio.png` | Step do Trivy saindo com `exit code 1`, SARIF enviado mesmo assim, `pytest` e `pip-audit` pulados | Run #12 → job `test (3.11)` | 2 | ✅ |
 | 15 | `evidencia_15_discord_falha.png` | Card vermelho do run #12, com `❌` nos testes | Discord → `#geral` | 7 | ✅ |
 
 ---
@@ -90,6 +90,12 @@ Texto para colar junto de cada imagem, porque print sem leitura é só print.
 **15 — card vermelho**
 > O mesmo card da evidência 04, agora com `❌` no gate de testes. O `Lint` verde e
 > o deploy `skipped` mostram onde está o problema antes de alguém abrir o log.
+
+**14 — o gate em ação**
+> `exit-code: '1'` é o que transforma o scan em gate: o step termina com
+> `Process completed with exit code 1`. O upload do SARIF, logo abaixo, roda
+> mesmo assim por causa do `if: always()`. O `pytest` e o `pip-audit` ficam
+> pulados — o primeiro gate que reprova interrompe o job.
 
 **13 e 14 — os dois gates de segurança**
 > O `pip-audit` consulta a base de advisories do PyPI/OSV; o Trivy varre o
