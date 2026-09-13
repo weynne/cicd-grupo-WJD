@@ -1,0 +1,24 @@
+# Evidencia 13 — pip-audit reprovando o requests 2.31.0
+#
+# Execucao local, com a mesma versao do CI (pip-audit 2.7.3) e o mesmo
+# requirements.txt do PR de ensaio (requests 2.33.0 -> 2.31.0).
+# Data: 2026-09-13
+#
+# Por que local: no CI o Trivy roda antes e reprova primeiro, entao o step
+# 'Audit dependencies (pip-audit)' fica skipped (run #12, job test (3.11)).
+# Rodado sozinho sobre o mesmo arquivo, o pip-audit reprova igual.
+#
+# Comando: pip-audit -r requirements.txt
+# Exit code: 1
+
+Found 3 known vulnerabilities in 1 package
+Name     Version ID              Fix Versions
+-------- ------- --------------- ------------
+requests 2.31.0  PYSEC-2026-1873 2.32.0
+requests 2.31.0  PYSEC-2026-1872 2.32.4
+requests 2.31.0  PYSEC-2026-2275 2.33.0
+
+# Identificadores equivalentes (aliases informados pelo proprio pip-audit):
+#   PYSEC-2026-1873  = CVE-2024-35195   corrigido em 2.32.0
+#   PYSEC-2026-1872  = CVE-2024-47081   corrigido em 2.32.4
+#   PYSEC-2026-2275  = CVE-2026-25645   corrigido em 2.33.0

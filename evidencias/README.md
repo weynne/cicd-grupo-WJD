@@ -25,7 +25,7 @@ completo, com o que cada imagem mostra e onde ela foi capturada.
 | 10 | `evidencia_10_badge_verde.png` | Badge `CI passing` verde no topo do README da `main` | Code → README na `main` | — | ✅ |
 | 11 | `evidencia_11_pr_corrigido_verde.png` | O mesmo PR verde e mergeável depois do bump | PR do ensaio shift-left | 3 | ⏳ |
 | 12 | `evidencia_12_merge_bloqueado.png` | Check vermelho e botão de merge cinza com *Required statuses must pass* | PR da demo | 2 | ⏳ PR da demo |
-| 13 | `evidencia_13_pip_audit_cves.png` | Os três CVEs do `requests` e as versões de correção | PR da demo → step *Audit dependencies* | 2 | ⏳ PR da demo |
+| 13 | `evidencia_13_pip_audit_cves.txt` | Os três CVEs do `requests` e as versões de correção | `pip-audit` local, mesma versão do CI — no CI o step fica *skipped* porque o Trivy reprova antes | 2 | ✅ |
 | 14 | `evidencia_14_trivy_bloqueio.png` | O Trivy reprovando os mesmos CVEs, com severidade `MEDIUM` | PR da demo → step do Trivy | 6 | ⏳ PR da demo |
 | 15 | `evidencia_15_discord_falha.png` | Card vermelho no canal, com o gate que falhou | Discord → `#geral` | 7 | ⏳ PR da demo |
 
