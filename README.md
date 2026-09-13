@@ -314,10 +314,23 @@ três versões — o pipeline não quebra, só deixa de ser configurável sem co
 
 ### Environment
 
-`staging`, configurado com *required reviewers*. O job `deploy-staging`
-reivindica esse environment e pausa até a aprovação. Secrets cadastrados dentro
-dele só existem para jobs que o reivindicam — é a diferença entre secret de
-repositório e secret com escopo de ambiente.
+`staging`, configurado com *required reviewers* e ***Prevent self-review*
+marcado**. O job `deploy-staging` reivindica esse environment e pausa até a
+aprovação. Secrets cadastrados dentro dele só existem para jobs que o
+reivindicam — é a diferença entre secret de repositório e secret com escopo de
+ambiente.
+
+| Opção | Valor |
+| --- | --- |
+| Required reviewers | os três membros do grupo |
+| Prevent self-review | **marcado** |
+
+O *Prevent self-review* bloqueia **quem disparou o run**, não quem abriu o pull
+request. Como é o merge que dispara o push na `main`, na prática ele separa dois
+papéis: quem clica em *Merge* não é quem clica em *Approve and deploy*.
+
+Isso não custa coordenação extra, porque o `CODEOWNERS` já obriga que o revisor
+de um PR seja outra pessoa. Quem revisa mergeia, e o autor aprova o deploy.
 
 ### CODEOWNERS
 
@@ -1004,6 +1017,20 @@ repositório, em vez de falhar num `curl` para uma URL vazia.
 
 **`deploy-staging` fora dos required checks.** Um job que não roda em pull request
 jamais reporta status. Torná-lo obrigatório bloquearia todo merge indefinidamente.
+
+**Quem faz o merge não aprova o deploy.** O environment começou sem *Prevent
+self-review*, e o primeiro deploy na `main` acabou aprovado por quem tinha
+disparado o run. Funcionava, mas esvaziava o gate: um passo de aprovação que a
+mesma pessoa cumpre sozinha pega acidente, nunca pega julgamento. Ligamos a
+opção depois de perceber isso, e o histórico de deployments registra os dois
+momentos.
+
+O custo que temíamos não se confirmou. A opção bloqueia **quem disparou o run** —
+e quem dispara é quem clica em *Merge* —, não o autor do pull request. Como o
+`CODEOWNERS` já obriga que o revisor seja outra pessoa, os dois papéis se separam
+sozinhos: o revisor mergeia, o autor aprova o deploy. É a segregação de funções
+que auditoria de verdade exige, obtida com um checkbox e nenhuma coordenação
+extra.
 
 **Sem publicação de imagem.** O pipeline valida e reprova; ele não empacota nem
 distribui. Publicar imagem sem ter onde consumi-la adicionaria secrets de
