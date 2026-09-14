@@ -1,4 +1,4 @@
-# ABOUTME: Continuous Integration pipeline: quality gates that block the merge on a pull request.
+# ABOUTME: CI pipeline: quality gates that block the merge, then the Docker image build and push.
 # ABOUTME: Runs on every pull request targeting main and on every push that lands on main.
 #
 # Reference: docs/ci-pipeline.md
@@ -9,7 +9,7 @@ name: CI
 #   - pull_request: this is what makes the CI an actual merge GATE.
 #   - push on main: keeps the README badge honest about the health of main.
 #   - push of any tag: a tag is a release candidate, so it goes through the same
-#     gates. Activity 2 hangs the versioned image publication off this trigger.
+#     gates and, once they pass, its image is published under the tag name.
 on:
   pull_request:
     branches: [main]
@@ -87,11 +87,102 @@ jobs:
     with:
       python-version: ${{ matrix.python-version }}
 
+  # Builds the application image and publishes it to Docker Hub. needs: [lint,
+  # test] is the whole point: if any gate fails, this job is skipped, so an
+  # image that failed a scan or a test is never published.
+  #
+  # Tags follow docs/ci-pipeline.md:
+  #   pull request -> PR-<number>
+  #   push on main -> latest
+  #   push of tag  -> the tag itself
+  # plus the short commit hash on every build, which traces a running pod back
+  # to the exact commit it was built from.
+  push:
+    name: Build and push image
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: app-k8s-todolist
+      # Read once at job level so the steps below can test it in if:, where the
+      # secrets context is not available.
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # Every value reaches the shell through env:, as in the notify job, so a
+      # branch or tag name cannot inject commands. On a pull_request event
+      # github.sha is the temporary merge commit, so the short hash is taken
+      # from the head of the branch instead.
+      #
+      # Docker tags only accept letters, digits, dot, dash and underscore; any
+      # other character in a git tag name is replaced by a dash.
+      - name: Compute image tags
+        id: tags
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          image="${DOCKERHUB_USERNAME:-local}/${IMAGE_NAME}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            main_tag="PR-${PR_NUMBER}"
+          elif [ "$REF_TYPE" = "tag" ]; then
+            main_tag=$(printf '%s' "$REF_NAME" | tr -c 'A-Za-z0-9_.-' '-')
+          else
+            main_tag="latest"
+          fi
+          short_sha="${SHA:0:7}"
+          {
+            echo "tags<<TAGS_EOF"
+            echo "${image}:${main_tag}"
+            echo "${image}:${short_sha}"
+            echo "TAGS_EOF"
+            echo "image_tags=${main_tag},${short_sha}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Image tags: ${main_tag}, ${short_sha}"
+
+      # The same guard as in notify: without Docker Hub credentials, as in a
+      # pull request from a fork or a clone of this repository, the image is
+      # still built, which proves the Dockerfile works, but it is not pushed.
+      - name: Log in to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Buildx is the builder behind build-push-action, and the one that can
+      # keep image layers in the GitHub Actions cache.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e  # v4.3.0
+
+      # IMAGE_TAGS is the build-arg the Dockerfile turns into the app footer, so
+      # a running pod shows which build it came from.
+      #
+      # type=gha keeps the image layers in the GitHub Actions cache: when only
+      # app.py changes, the dependency layer is reused instead of rebuilt.
+      - name: Build and push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
+        with:
+          context: .
+          push: ${{ env.DOCKERHUB_USERNAME != '' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            IMAGE_TAGS=${{ steps.tags.outputs.image_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # Placeholder deployment whose real purpose is the human approval gate. The
   # staging environment is configured with required reviewers, so this job shows
   # up as "Waiting" and pauses until someone approves it under Review
   # deployments. The approval is recorded in the repository deployment history,
   # which is auditing for free.
+  #
+  # needs includes push, so staging only receives a commit whose image is
+  # already on Docker Hub.
   #
   # The if: restricts it to a push on main: deploying on every pull request
   # would make no sense, and reviewers would be asked to approve constantly.
@@ -100,7 +191,7 @@ jobs:
   # request, so a required check that never reports would block every merge.
   deploy-staging:
     name: Deploy to staging (dummy)
-    needs: [lint, test]
+    needs: [lint, test, push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -116,7 +207,7 @@ jobs:
   # when the team needs to hear about it.
   notify:
     name: Notify pipeline result
-    needs: [lint, test, deploy-staging]
+    needs: [lint, test, push, deploy-staging]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -125,15 +216,17 @@ jobs:
       # below is what makes those values addressable as steps.msg.outputs.<name>
       # from the next step on.
       #
-      # deploy-staging is skipped on pull requests, so "skipped" counts as
-      # neutral. Treating it as a failure would make every pull request report
-      # a red pipeline.
+      # deploy-staging is skipped on pull requests, and push is skipped whenever
+      # a gate fails, so "skipped" counts as neutral for both. Treating it as a
+      # failure would make every pull request report a red pipeline; a failing
+      # gate already turns the card red on its own.
       - name: Compose message
         id: msg
         env:
           LINT_RESULT: ${{ needs.lint.result }}
           TEST_RESULT: ${{ needs.test.result }}
           DEPLOY_RESULT: ${{ needs.deploy-staging.result }}
+          PUSH_RESULT: ${{ needs.push.result }}
           EVENT_NAME: ${{ github.event_name }}
           REF_TYPE: ${{ github.ref_type }}
           # github.ref_name is `2/merge` on a pull request: the internal merge
@@ -157,6 +250,7 @@ jobs:
 
           if [ "$LINT_RESULT" = "success" ] \
              && [ "$TEST_RESULT" = "success" ] \
+             && { [ "$PUSH_RESULT" = "success" ] || [ "$PUSH_RESULT" = "skipped" ]; } \
              && { [ "$DEPLOY_RESULT" = "success" ] || [ "$DEPLOY_RESULT" = "skipped" ]; }; then
             # Discord wants the embed colour as a decimal integer:
             # 3066993 is #2ECC71 (green), 15158332 is #E74C3C (red).
@@ -182,6 +276,7 @@ jobs:
             echo "trigger=$trigger"
             echo "lint=$(icon "$LINT_RESULT") $LINT_RESULT"
             echo "tests=$(icon "$TEST_RESULT") $TEST_RESULT"
+            echo "image=$(icon "$PUSH_RESULT") $PUSH_RESULT"
             echo "deploy=$(icon "$DEPLOY_RESULT") $DEPLOY_RESULT"
             # First line of a commit message only, trimmed to fit the embed.
             echo "subject=$(printf '%s' "$SUBJECT" | head -n 1 | cut -c1-120)"
@@ -224,9 +319,13 @@ jobs:
           SUBJECT: ${{ steps.msg.outputs.subject }}
           LINT: ${{ steps.msg.outputs.lint }}
           TESTS: ${{ steps.msg.outputs.tests }}
+          IMAGE: ${{ steps.msg.outputs.image }}
           DEPLOY: ${{ steps.msg.outputs.deploy }}
         run: |
           # Headline of the card: what changed, which commit, what triggered it.
+          # The backticks below are Markdown for the Discord card, not command
+          # substitution, hence the ShellCheck SC2016 exception.
+          # shellcheck disable=SC2016
           # The commit URL is built here so that SHA stays the single source of
           # truth for both the link and the text next to it.
           description=$(printf '**%s**\n[`%s`](%s/commit/%s) · %s' \
@@ -242,6 +341,7 @@ jobs:
             --arg     avatar    "${AVATAR_URL}" \
             --arg     lint      "${LINT}" \
             --arg     tests     "${TESTS}" \
+            --arg     image     "${IMAGE}" \
             --arg     deploy    "${DEPLOY}" \
             --arg     footer    "Run #${RUN_NUMBER} · ${REPO}" \
             --arg     ts        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -255,6 +355,7 @@ jobs:
                 fields: [
                   {name: "Lint (ruff)",    value: $lint,   inline: true},
                   {name: "Tests (matrix)", value: $tests,  inline: true},
+                  {name: "Docker image",   value: $image,  inline: true},
                   {name: "Deploy staging", value: $deploy, inline: true}
                 ],
                 footer: {text: $footer}

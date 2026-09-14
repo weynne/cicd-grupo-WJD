@@ -54,7 +54,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
   vermelho, teve o merge bloqueado e voltou ao verde com a correção — ver
   [Evidências da entrega](#evidências-da-entrega).
 - **O que acompanha os gates:** alertas do Trivy anotados no próprio PR, cache de
-  dependências, notificação no Discord e deploy em staging com aprovação humana.
+  dependências, publicação da imagem no Docker Hub, notificação no Discord e
+  deploy em staging com aprovação humana.
 - **O que vai além do material do professor:** ver
   [Além do material de referência](#além-do-material-de-referência).
 - **Onde divergimos do enunciado, e por quê:** ver
@@ -75,7 +76,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 ## O que o pipeline faz
 
 O `ci.yml` é um conjunto de **portões de qualidade** (*quality gates*) que
-bloqueiam o merge quando o lint, os testes ou os scans de segurança falham.
+bloqueiam o merge quando o lint, os testes ou os scans de segurança falham — e,
+quando todos passam, constrói a imagem da aplicação e a publica no Docker Hub.
 
 ### O grafo de jobs
 
@@ -93,8 +95,9 @@ flowchart TD
         M3["Test<br>Python 3.12"]
     end
 
-    L --> D
-    M --> D
+    L --> P["Build and push image<br>Docker Hub"]
+    M --> P
+    P --> D
 
     D{"push na main?"}
     D -->|sim| S["Deploy to staging<br>pausa até aprovação humana"]
@@ -110,8 +113,9 @@ flowchart TD
 ```
 
 `Lint` e `test` rodam **em paralelo** — `needs:` é o que cria ordem no GitHub
-Actions, e só `deploy-staging` e `notify` declaram um. As setas pontilhadas são o
-caminho da falha: com `if: always()`, o `notify` roda mesmo quando o lint ou os
+Actions, e só `push`, `deploy-staging` e `notify` declaram um. A imagem só é
+publicada depois que lint e testes passam. As setas pontilhadas são o caminho da
+falha: com `if: always()`, o `notify` roda mesmo quando o lint ou os
 testes reprovam, que é justamente quando o time precisa saber.
 
 ### O que acontece dentro de cada job da matrix
@@ -241,13 +245,14 @@ Quatro níveis, de fora para dentro:
 | Nível | O que é | Aqui |
 | --- | --- | --- |
 | **Workflow** | Arquivo YAML em `.github/workflows/`, disparado por eventos | `ci.yml`, `_reusable-test.yml` |
-| **Job** | Grupo de steps que roda numa VM efêmera (*runner*) | `lint`, `test`, `deploy-staging`, `notify` |
+| **Job** | Grupo de steps que roda numa VM efêmera (*runner*) | `lint`, `test`, `push`, `deploy-staging`, `notify` |
 | **Step** | Um comando de shell ou uma chamada de Action | `ruff check .`, `pytest -v` |
 | **Action** | Código reutilizável, de terceiros ou próprio | `actions/checkout`, `aquasecurity/trivy-action` |
 
 Por padrão **jobs rodam em paralelo**; `needs:` é o que cria ordem entre eles. É
-daí que sai o formato deste pipeline: `lint` e `test` em paralelo,
-`deploy-staging` com `needs: [lint, test]`, e `notify` com `needs:` nos três.
+daí que sai o formato deste pipeline: `lint` e `test` em paralelo, `push` com
+`needs: [lint, test]`, `deploy-staging` com `needs: [lint, test, push]` e
+`notify` com `needs:` nos quatro.
 
 Cada job roda numa VM nova, isolada, destruída ao fim. Nada persiste entre jobs
 além do que for explicitamente armazenado em cache ou publicado como artefato — por isso o
@@ -271,6 +276,7 @@ localmente ou subir a aplicação.
 | Python 3.10, 3.11 ou 3.12 | Rodar os gates na sua máquina |
 | Docker | Rodar os gates em ambiente idêntico ao CI e subir a aplicação |
 | Servidor no Discord com permissão de criar webhook | Notificação do pipeline |
+| Conta no Docker Hub, com um access token | Publicação da imagem |
 
 Nenhuma credencial de nuvem é necessária.
 
@@ -291,7 +297,7 @@ bloqueia nada.
 | Dismiss stale pull request approvals when new commits are pushed | marcado | Um commit novo derruba a aprovação anterior |
 | Require review from Code Owners | marcado | Ativa o efeito do `CODEOWNERS` |
 | Allowed merge methods | somente *Squash* | Um commit por PR na `main` |
-| Require status checks to pass | os 4 checks abaixo | **É este item que bloqueia o merge** |
+| Require status checks to pass | os 5 checks abaixo | **É este item que bloqueia o merge** |
 | Require branches to be up to date before merging | marcado | Os checks precisam ter rodado sobre a `main` atual, não sobre uma antiga |
 | Require linear history | marcado | Sem merge commits na `main` |
 | Block force pushes | marcado | Preserva o histórico |
@@ -306,6 +312,7 @@ bloqueia nada.
 | `test (3.10) / Test (Python 3.10)` | Sim | Gate funcional e de segurança |
 | `test (3.11) / Test (Python 3.11)` | Sim | idem |
 | `test (3.12) / Test (Python 3.12)` | Sim | idem |
+| `Build and push image` | Sim | Prova, em todo PR, que a imagem é construída |
 | `Deploy to staging (dummy)` | **Não** | Não roda em pull request |
 | `Notify pipeline result` | **Não** | É um aviso, não um gate |
 | `Code scanning results / Trivy` | **Não** | Ver abaixo |
@@ -337,6 +344,8 @@ diferentes e nos tiraria o controle sobre o que bloqueia.
 | --- | --- | --- |
 | `PYTHON_VERSIONS` | **Variables** | `["3.10", "3.11", "3.12"]` |
 | `NOTIFY_WEBHOOK_URL` | **Secrets** | URL do webhook do Discord |
+| `DOCKERHUB_USERNAME` | **Secrets** | Usuário do Docker Hub; compõe o nome da imagem, `<usuário>/app-k8s-todolist` |
+| `DOCKERHUB_TOKEN` | **Secrets** | Access token do Docker Hub com permissão *Read & Write* — nunca a senha da conta |
 | `STAGING_URL` | **Secrets** do environment `staging` | Valor fictício |
 
 Se `PYTHON_VERSIONS` não existir, o `ci.yml` usa o valor de reserva e testa as
@@ -447,7 +456,7 @@ docker run --rm -p 8080:5000 -e APP_COLOR=blue -e SESSION_KEY=local todolist:dev
 ├── requirements.txt                        # dependências de produção — alvo dos scans
 ├── requirements-dev.txt                    # pytest, ruff, pip-audit
 ├── pyproject.toml                          # configuração do ruff
-├── Dockerfile                              # imagem da aplicação
+├── Dockerfile                              # imagem da aplicação, publicada pelo job push
 ├── k8s/                                    # manifestos de deploy, fora do escopo desta entrega
 ├── evidencias/                             # capturas da entrega, com índice próprio
 └── docs/                                   # referências do starter-kit
@@ -523,7 +532,7 @@ só sugere revisores sem obrigar ninguém.
 git mv .github/workflows/ci.yml.example .github/workflows/ci.yml
 ```
 
-O workflow principal: 4 jobs, 264 linhas. É o **chamador** — concentra gatilhos,
+O workflow principal: 5 jobs, 365 linhas. É o **chamador** — concentra gatilhos,
 permissões e orquestração, e delega os steps de teste ao reusable.
 
 | Bloco | O que faz |
@@ -535,6 +544,7 @@ permissões e orquestração, e delega os steps de teste ao reusable.
 | `env:` | Valores de configuração não sensíveis |
 | `jobs.lint` | Gate de estilo com `ruff`, fora da matrix |
 | `jobs.test` | Chama o reusable uma vez por versão do Python |
+| `jobs.push` | Constrói a imagem e publica no Docker Hub, depois dos gates |
 | `jobs.deploy-staging` | Gate de aprovação humana via environment |
 | `jobs.notify` | Manda o resultado final para o Discord |
 
@@ -645,12 +655,67 @@ quebraria no `fromJSON` de uma string vazia.
 `python-version`. É por isso que o mesmo dado tem dois nomes: `matrix.` aqui,
 `inputs.` lá dentro.
 
+#### `jobs.push` — a imagem só sai depois dos gates
+
+```yaml
+  push:
+    name: Build and push image
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: app-k8s-todolist
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+```
+
+**`needs: [lint, test]`** é a garantia principal: se qualquer gate reprova, o job
+é pulado, e uma imagem com dependência vulnerável ou teste quebrado nunca chega ao
+Docker Hub.
+
+O primeiro step calcula as tags, seguindo a tabela do `docs/ci-pipeline.md`:
+
+| Evento | Tag principal | Exemplo |
+| --- | --- | --- |
+| Pull request para a `main` | `PR-<número>` | `PR-12` |
+| Push na `main` | `latest` | `latest` |
+| Push de tag | a própria tag | `v1.2.0` |
+
+Toda imagem recebe também o **hash curto do commit**, o que permite rastrear um
+pod até o commit exato. Em pull request, esse hash vem do head da branch, e não do
+merge temporário que o GitHub monta. Caracteres que o Docker não aceita em tag,
+como `/`, viram `-`.
+
+```yaml
+      - name: Build and push
+        uses: docker/build-push-action@53b7df96…  # v7.3.0
+        with:
+          context: .
+          push: ${{ env.DOCKERHUB_USERNAME != '' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            IMAGE_TAGS=${{ steps.tags.outputs.image_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+**`build-args: IMAGE_TAGS`** entrega as tags ao `Dockerfile`, que as repassa à
+aplicação: o rodapé mostra de qual build o pod veio.
+
+**`push:` condicionado ao secret.** O `DOCKERHUB_USERNAME` é lido no `env:` do
+job porque o contexto `secrets` não pode ser usado num `if:`. Sem ele — num pull
+request vindo de fork, ou num clone deste repositório —, o login é pulado e a
+imagem é construída sem ser publicada. O `Dockerfile` continua sendo validado, e
+o job não falha num login sem credenciais.
+
+**`cache-from` e `cache-to` com `type=gha`** guardam as camadas da imagem no
+cache do GitHub Actions. Quando só o `app.py` muda, a camada de dependências é
+reaproveitada.
+
 #### `jobs.deploy-staging` — aprovação humana sem escrever lógica
 
 ```yaml
   deploy-staging:
     name: Deploy to staging (dummy)
-    needs: [lint, test]
+    needs: [lint, test, push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -663,8 +728,9 @@ reviewers*, o job aparece como *Waiting* e pausa até alguém aprovar em **Revie
 deployments**. Nenhuma linha de código nossa implementa a espera; a plataforma
 faz isso.
 
-**`needs: [lint, test]`** é o que cria ordem: sem isso ele rodaria em paralelo
-com os testes e faria deploy de código que ainda não passou por eles. **O `if:`**
+**`needs: [lint, test, push]`** é o que cria ordem: o deploy só começa depois
+que os gates passaram e a imagem foi publicada, então staging nunca recebe um
+commit reprovado nem uma imagem que não existe no Docker Hub. **O `if:`**
 restringe o job a push na `main` — pedir aprovação a cada pull request cansaria
 os revisores rapidamente.
 
@@ -874,11 +940,12 @@ diferente, escolhido pelo escopo e pela sensibilidade.
 | Mecanismo | Onde é declarado | Usado para | Exemplo aqui |
 | --- | --- | --- | --- |
 | `env` de workflow | Topo do `ci.yml` | Valor repetido, não sensível | `DEFAULT_PYTHON_VERSION: '3.12'` |
+| `env` de job | Dentro do job | Valor usado por vários steps do mesmo job | `IMAGE_NAME`, `DOCKERHUB_USERNAME` |
 | `env` de step | Dentro do step | Passar valores ao shell com segurança, inclusive secrets | `WEBHOOK_URL`, `RUN_URL` |
 | `matrix` | `strategy` do job chamador | Dimensão que multiplica o job | `python-version` |
 | `inputs` | `workflow_call` do reusable | Contrato entre chamador e reusable | `python-version` |
 | Variável de repositório | `Settings → Secrets and variables → Variables` | Configuração não sensível que muda sem commit | `PYTHON_VERSIONS` |
-| Secret de repositório | `Settings → Secrets and variables → Secrets` | Credencial usada por qualquer job | `NOTIFY_WEBHOOK_URL` |
+| Secret de repositório | `Settings → Secrets and variables → Secrets` | Credencial usada por qualquer job | `NOTIFY_WEBHOOK_URL`, `DOCKERHUB_TOKEN` |
 | Secret de environment | Dentro do environment `staging` | Credencial que só um ambiente pode ler | `STAGING_URL` |
 
 O `DEFAULT_PYTHON_VERSION` existe porque o job `lint` não precisa da matrix
@@ -933,6 +1000,7 @@ Na interface do GitHub:
 - **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
 - **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
 - **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate reprova, com link para o run
+- **Docker Hub** — a imagem `app-k8s-todolist` com `latest` e o hash curto do commit após um merge na `main`, e `PR-<número>` a cada pull request
 
 ---
 
@@ -964,6 +1032,14 @@ problema é revisar o título ao abrir o PR.
 `NOTIFY_WEBHOOK_URL` não está cadastrado, e a condição `if: env.WEBHOOK_URL != ''`
 pula o envio de propósito. Confira em `Settings → Secrets and variables → Actions`.
 
+**`Log in to Docker Hub` falha com `unauthorized`.** O `DOCKERHUB_TOKEN` foi
+revogado, expirou ou não tem permissão de escrita. Gere outro em Docker Hub →
+*Account settings* → *Personal access tokens* e atualize o secret.
+
+**O job `Build and push image` fica verde, mas nada aparece no Docker Hub.** O
+secret `DOCKERHUB_USERNAME` não está cadastrado: sem ele a imagem é só
+construída, de propósito.
+
 **`upload-sarif` retorna 403.** Code scanning em repositório privado exige GitHub
 Advanced Security. Ver [Divergências](#divergências-em-relação-ao-enunciado).
 
@@ -991,9 +1067,13 @@ Actions estão fixadas por SHA de commit no YAML, com a tag em comentário.
 | Auditoria de dependências | `pip-audit` | 2.7.3 | reusable |
 | Scan de filesystem e SO | `aquasecurity/trivy-action` | v0.36.0 | reusable |
 | Envio do SARIF | `github/codeql-action/upload-sarif` | v4.38.0 | reusable |
-| Checkout | `actions/checkout` | v7.0.1 | `lint` + reusable |
+| Checkout | `actions/checkout` | v7.0.1 | `lint`, `push` e reusable |
 | Runtime | `actions/setup-python` | v7.0.0 | `lint` + reusable |
 | Cache | `actions/cache` | v6.1.0 | `lint` + reusable |
+| Login no registry | `docker/login-action` | v4.6.0 | job `push` |
+| Builder | `docker/setup-buildx-action` | v4.3.0 | job `push` |
+| Build e publicação da imagem | `docker/build-push-action` | v7.3.0 | job `push` |
+| Registry | Docker Hub, imagem `<usuário>/app-k8s-todolist` | — | job `push` |
 | Versões testadas | Python 3.10, 3.11, 3.12 | via `vars.PYTHON_VERSIONS` | matrix |
 | Notificação | webhook do Discord via `curl` | — | job `notify` |
 | Aprovação humana | environment do GitHub com *required reviewer* | — | job `deploy-staging` |
@@ -1046,7 +1126,8 @@ edição em `Settings`, sem commit e sem PR. O fallback no `||` mantém o pipeli
 executável em qualquer clone.
 
 **Tag também passa pelos gates.** `tags: ['*']` no gatilho de push garante que
-nenhuma tag chegue a virar release sem ter passado por lint, testes e scans.
+nenhuma tag chegue a virar release sem ter passado por lint, testes e scans — e a
+imagem da tag só é publicada depois disso.
 
 **Lint fora da matrix.** Rodar o linter nas três versões do Python daria o mesmo
 resultado três vezes: o `ruff` analisa o código estaticamente, sem executá-lo. O
@@ -1073,9 +1154,20 @@ sozinhos: o revisor faz o merge, o autor aprova o deploy. É a segregação de f
 que auditoria de verdade exige, obtida com um checkbox e nenhuma coordenação
 extra.
 
-**Sem publicação de imagem.** O pipeline valida e reprova; ele não empacota nem
-distribui. Publicar imagem sem ter onde consumi-la adicionaria secrets de
-registry e um artefato sem destino, e o enunciado desta entrega não pede.
+**A imagem só é publicada depois dos gates.** O job `push` depende de `lint` e
+`test`: se qualquer gate reprova, ele é pulado, e uma imagem com dependência
+vulnerável ou teste quebrado nunca chega ao Docker Hub. Pelo mesmo motivo, o
+`deploy-staging` depende do `push`.
+
+**Duas tags por imagem.** A principal diz de onde a imagem veio — `PR-<número>`,
+`latest` ou a tag criada —, e o hash curto do commit permite rastrear qualquer
+pod até o commit exato. As mesmas tags entram na imagem pelo build-arg
+`IMAGE_TAGS`, e a aplicação as mostra no rodapé.
+
+**Sem credenciais, a imagem é construída mas não publicada.** Num pull request
+vindo de fork, ou num clone deste repositório, os secrets do Docker Hub não
+existem. Em vez de falhar no login, o job constrói a imagem — o que ainda valida
+o `Dockerfile` — e pula o login e a publicação.
 
 ---
 
@@ -1095,7 +1187,10 @@ que **contrariam** o material estão em
 | Versões da matrix na variável `PYTHON_VERSIONS`, com valor de reserva | Lista fixa no YAML | Mudar a cobertura é uma edição em `Settings`, sem commit |
 | Tags passando pelos gates, com `tags: ['*']` | Citado apenas como extensão para publicar imagem | Nenhuma tag vira release sem lint, testes e scans |
 | Lint executado uma vez, fora da matrix, com cache próprio | O material não define onde o lint roda | O `ruff` não executa o código; rodar nas três versões repetiria o mesmo resultado |
-| `deploy-staging` depende de `lint` e de `test` | `needs: test` | O deploy também espera o lint passar |
+| `deploy-staging` depende de `lint`, `test` e `push` | `needs: test` | O deploy espera o lint e a publicação da imagem |
+| Imagem construída sem ser publicada quando faltam as credenciais do Docker Hub | Não aparece | Um PR de fork ou um clone valida o `Dockerfile` sem falhar no login |
+| Camadas da imagem no cache do GitHub Actions (`type=gha`) | Não aparece | Quando só o `app.py` muda, a camada de dependências é reaproveitada |
+| Hash curto da imagem tirado do head do pull request | Não aparece | A tag aponta para o commit da branch, e não para o merge temporário |
 | `pip-audit -r requirements.txt` | `pip-audit` sem argumentos, no esqueleto | O gate audita só as dependências de produção |
 | Upload do SARIF com `if: always()` e `category` por versão | Apenas o upload | O relatório chega quando o Trivy reprova, e os três uploads do mesmo commit não se sobrescrevem |
 
@@ -1110,7 +1205,7 @@ o webhook e o link do run. Além disso:
 | `github.head_ref` no lugar de `github.ref_name` | O card mostra a branch real, e não a ref interna `N/merge` |
 | `github.event.pull_request.head.sha` no lugar de `github.sha` | O link aponta para o commit da branch, e não para o merge temporário |
 | `curl --fail-with-body` | Se o Discord recusar a mensagem, o step falha e mostra o motivo |
-| Um ícone por gate, incluindo o deploy, com `skipped` tratado como neutro | O card indica onde está o problema, e um PR sem deploy não aparece como falha |
+| Um ícone por gate, incluindo a imagem e o deploy, com `skipped` tratado como neutro | O card indica onde está o problema, e um PR sem deploy não aparece como falha |
 | Envio condicionado à existência do secret | Um clone sem webhook configurado não fica vermelho |
 
 ### Na proteção do repositório
@@ -1122,9 +1217,6 @@ o webhook e o link do run. Além disso:
 | *Allowed merge methods* somente *Squash* e *Require linear history* | Não aparece | Um commit por PR e histórico linear na `main` |
 | *Block force pushes* e *Restrict deletions* | Não aparece | O histórico e a própria `main` ficam protegidos |
 | Toda regra do `CODEOWNERS` com dois donos | O modelo deixa `/.github/workflows/` com um dono só | O autor não aprova o próprio PR; com um dono só, os PRs dele ficariam sem revisor |
-
-Na direção oposta, o job de publicação da imagem no Docker Hub, previsto no
-material, não faz parte desta entrega — ver [Por que assim](#por-que-assim).
 
 ---
 
