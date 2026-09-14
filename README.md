@@ -282,18 +282,18 @@ bloqueia nada.
 
 `Settings → Rules → Rulesets → New branch ruleset`, alvo `main`:
 
-| Regra | Por quê |
-| --- | --- |
-| Require a pull request before merging, com 1 aprovação | Ninguém faz commit direto na `main` |
-| Dismiss stale pull request approvals | Um commit novo derruba a aprovação anterior |
-| Require review from Code Owners | Ativa o efeito do `CODEOWNERS` |
-| Merge method: somente *squash* | Um commit por PR na `main` |
-| Require status checks to pass | **É este item que bloqueia o merge** |
-| Require branches to be up to date | Os checks precisam ter rodado sobre a `main` atual, não sobre uma antiga |
-| Require linear history | Sem merge commits na `main` |
-| Block force pushes | Preserva o histórico |
-| Restrict deletions | A `main` não pode ser apagada |
-| Lista de exceções (*bypass*) vazia | A regra vale também para o dono do repositório |
+| Regra | Valor | Por quê |
+| --- | --- | --- |
+| Require a pull request before merging | 1 aprovação | Ninguém faz commit direto na `main` |
+| Dismiss stale pull request approvals when new commits are pushed | marcado | Um commit novo derruba a aprovação anterior |
+| Require review from Code Owners | marcado | Ativa o efeito do `CODEOWNERS` |
+| Allowed merge methods | somente *Squash* | Um commit por PR na `main` |
+| Require status checks to pass | os 4 checks abaixo | **É este item que bloqueia o merge** |
+| Require branches to be up to date before merging | marcado | Os checks precisam ter rodado sobre a `main` atual, não sobre uma antiga |
+| Require linear history | marcado | Sem merge commits na `main` |
+| Block force pushes | marcado | Preserva o histórico |
+| Restrict deletions | marcado | A `main` não pode ser apagada |
+| Bypass list | vazia | A regra vale também para o dono do repositório |
 
 ### Required status checks
 
