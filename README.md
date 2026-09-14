@@ -40,6 +40,7 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 - [Verificação](#verificação)
 - [Solução de problemas](#solução-de-problemas)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
+- [Além do material de referência](#além-do-material-de-referência)
 - [Divergências em relação ao enunciado](#divergências-em-relação-ao-enunciado)
 - [Créditos](#créditos)
 
@@ -54,6 +55,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
   [Evidências da entrega](#evidências-da-entrega).
 - **O que acompanha os gates:** alertas do Trivy anotados no próprio PR, cache de
   dependências, notificação no Discord e deploy em staging com aprovação humana.
+- **O que vai além do material do professor:** ver
+  [Além do material de referência](#além-do-material-de-referência).
 - **Onde divergimos do enunciado, e por quê:** ver
   [Divergências](#divergências-em-relação-ao-enunciado).
 
@@ -1076,9 +1079,58 @@ registry e um artefato sem destino, e o enunciado desta entrega não pede.
 
 ---
 
+## Além do material de referência
+
+O starter-kit traz os esqueletos em `.github/workflows/*.yml.example` e a
+explicação de cada peça em `docs/ci-pipeline.md`. O que esse material pede está
+implementado; esta seção lista o que o pipeline faz **além** dele. As mudanças
+que **contrariam** o material estão em
+[Divergências](#divergências-em-relação-ao-enunciado).
+
+### No pipeline
+
+| O que foi acrescentado | No material | Por que importa |
+| --- | --- | --- |
+| `concurrency` com `cancel-in-progress` | Não aparece | Um push novo cancela o run anterior da mesma branch, em vez de entrar na fila |
+| Versões da matrix na variável `PYTHON_VERSIONS`, com valor de reserva | Lista fixa no YAML | Mudar a cobertura é uma edição em `Settings`, sem commit |
+| Tags passando pelos gates, com `tags: ['*']` | Citado apenas como extensão para publicar imagem | Nenhuma tag vira release sem lint, testes e scans |
+| Lint executado uma vez, fora da matrix, com cache próprio | O material não define onde o lint roda | O `ruff` não executa o código; rodar nas três versões repetiria o mesmo resultado |
+| `deploy-staging` depende de `lint` e de `test` | `needs: test` | O deploy também espera o lint passar |
+| `pip-audit -r requirements.txt` | `pip-audit` sem argumentos, no esqueleto | O gate audita só as dependências de produção |
+| Upload do SARIF com `if: always()` e `category` por versão | Apenas o upload | O relatório chega quando o Trivy reprova, e os três uploads do mesmo commit não se sobrescrevem |
+
+### Na notificação
+
+O material pede `if: always()`, a leitura de `needs.<job>.result`, o `curl` para
+o webhook e o link do run. Além disso:
+
+| O que foi acrescentado | Por que importa |
+| --- | --- |
+| Valores passados ao shell por `env:` e JSON montado com `jq` | Um nome de branch malicioso não é executado como comando |
+| `github.head_ref` no lugar de `github.ref_name` | O card mostra a branch real, e não a ref interna `N/merge` |
+| `github.event.pull_request.head.sha` no lugar de `github.sha` | O link aponta para o commit da branch, e não para o merge temporário |
+| `curl --fail-with-body` | Se o Discord recusar a mensagem, o step falha e mostra o motivo |
+| Um ícone por gate, incluindo o deploy, com `skipped` tratado como neutro | O card indica onde está o problema, e um PR sem deploy não aparece como falha |
+| Envio condicionado à existência do secret | Um clone sem webhook configurado não fica vermelho |
+
+### Na proteção do repositório
+
+| O que foi acrescentado | No material | Por que importa |
+| --- | --- | --- |
+| *Prevent self-review* no environment `staging` | Apenas *required reviewer* | Quem fez o merge não aprova o próprio deploy |
+| *Dismiss stale pull request approvals when new commits are pushed* | Não aparece | Um commit novo exige nova aprovação |
+| *Allowed merge methods* somente *Squash* e *Require linear history* | Não aparece | Um commit por PR e histórico linear na `main` |
+| *Block force pushes* e *Restrict deletions* | Não aparece | O histórico e a própria `main` ficam protegidos |
+| Toda regra do `CODEOWNERS` com dois donos | O modelo deixa `/.github/workflows/` com um dono só | O autor não aprova o próprio PR; com um dono só, os PRs dele ficariam sem revisor |
+
+Na direção oposta, o job de publicação da imagem no Docker Hub, previsto no
+material, não faz parte desta entrega — ver [Por que assim](#por-que-assim).
+
+---
+
 ## Divergências em relação ao enunciado
 
-Quatro pontos em que este projeto divergiu da letra do enunciado. Todos preservam
+Três pontos em que este projeto divergiu da letra do enunciado. Todos preservam
 o requisito de fundo, e todos foram medidos antes de decidir.
 
 ### 1. Repositório público em vez de privado
@@ -1132,14 +1184,7 @@ faixa, ou seja, a mudança não introduziu ruído.
 O requisito de fundo do enunciado, **Trivy como gate de segurança que bloqueia o
 merge**, está atendido com folga: ele bloqueia mais, não menos.
 
-### 3. Dois steps que o enunciado não menciona
-
-`if: always()` no upload do SARIF e `category` por versão da matrix. Não são
-preferência: sem o primeiro, o relatório nunca chega ao code scanning quando há
-vulnerabilidade; sem o segundo, os três uploads do mesmo commit se sobrescrevem e
-podem colidir. Ambos estão comentados no próprio YAML.
-
-### 4. Actions no release atual, não nas versões dos esqueletos
+### 3. Actions no release atual, não nas versões dos esqueletos
 
 Os esqueletos usam `checkout@v4.2.2`, `setup-python@v5.6.0` e `cache@v4.2.4`.
 Rodamos as três no release atual, e o `upload-sarif` na CodeQL Action v4.
