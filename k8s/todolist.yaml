@@ -23,6 +23,11 @@ spec:
       labels:
         app: todolist
     spec:
+      template:
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
+        
       containers:
         - name: todolist
           # Troque SEU_USUARIO_DOCKERHUB pelo seu usuário do Docker Hub.
