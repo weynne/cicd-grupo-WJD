@@ -1,0 +1,102 @@
+# ABOUTME: Pipeline de deploy blue/green: publica uma versão num slot de cor.
+# ABOUTME: Faz deploy manual da imagem escolhida em blue ou green e testa o slot.
+#
+# Este workflow publica uma versão no slot da cor escolhida e faz smoke test no
+# host fixo desse slot. NÃO troca o tráfego de produção — isso é papel do
+# cd-blue-green-switch.yml. Duas operações separadas é o blue/green clássico:
+# preparar a versão, e depois decidir fazer o cutover.
+#
+# Referência: docs/cd-pipeline.md
+
+name: CD Blue/Green deploy
+
+# run-name dinâmico: a aba Actions mostra a cor e a tag de cada execução.
+run-name: 'Blue/Green deploy → ${{ inputs.color }} (${{ inputs.image_tag }})'
+
+on:
+  workflow_dispatch:
+    inputs:
+      color:
+        description: 'Slot de cor onde publicar a versão'
+        required: true
+        type: choice
+        options:
+          - blue
+          - green
+        default: blue
+      image_tag:
+        description: 'Tag da imagem a publicar (Docker Hub)'
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: app-k8s-todolist
+  NAMESPACE: todolist-bg
+
+jobs:
+  deploy:
+    name: Deploy no slot de cor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy bootstrap manifest to EC2
+        run: |
+          scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
+            k8s/blue-green/bootstrap.yaml \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/blue-green-bootstrap.yaml"
+
+      - name: Deploy no slot e smoke test
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME_JESSICA }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+          KIND_CLUSTER: ${{ vars.KIND_CLUSTER || 'devops-labs' }}
+          COLOR: ${{ inputs.color }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            "IMAGE='${IMAGE}' KIND_CLUSTER='${KIND_CLUSTER}' NS='${NAMESPACE}' COLOR='${COLOR}' bash -s" <<'EOF'
+            set -euo pipefail
+
+            kubectl config use-context "kind-${KIND_CLUSTER}"
+
+            if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
+              kubectl apply -f ~/blue-green-bootstrap.yaml
+            fi
+
+            ACTIVE=$(kubectl get svc todolist -n "${NS}" -o jsonpath='{.spec.selector.color}')
+
+            if [ "${ACTIVE}" = "${COLOR}" ]; then
+              echo "AVISO: ${COLOR} já é a cor ativa em produção."
+            fi
+
+            kubectl set image deployment/todolist-${COLOR} \
+              todolist="${IMAGE}" \
+              -n "${NS}"
+
+            kubectl rollout status deployment/todolist-${COLOR} \
+              -n "${NS}" \
+              --timeout=120s
+
+            for _ in $(seq 1 20); do
+              if curl -fsS \
+                -H "Host: ${COLOR}.todolist-bg.local" \
+                http://localhost/healthz; then
+                exit 0
+              fi
+              sleep 3
+            done
+
+            echo "Smoke test falhou para ${COLOR}.todolist-bg.local"
+            exit 1
+          EOF
