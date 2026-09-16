@@ -74,6 +74,12 @@ jobs:
               kubectl apply -f ~/blue-green-bootstrap.yaml
             fi
 
+            if ! kubectl get secret dockerhub-secret -n "${NS}" >/dev/null 2>&1; then
+              kubectl get secret dockerhub-secret -n todolist -o json \
+                | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.managedFields)' \
+                | kubectl apply -n "${NS}" -f -
+            fi
+
             ACTIVE=$(kubectl get svc todolist -n "${NS}" -o jsonpath='{.spec.selector.color}')
 
             if [ "${ACTIVE}" = "${COLOR}" ]; then
