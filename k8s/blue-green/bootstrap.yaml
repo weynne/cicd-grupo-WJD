@@ -27,6 +27,8 @@ spec:
         app: todolist
         color: blue
     spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
       containers:
         - name: todolist
           # Troque SEU_USUARIO_DOCKERHUB pelo seu usuário do Docker Hub antes do
@@ -78,6 +80,8 @@ spec:
         app: todolist
         color: green
     spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
       containers:
         - name: todolist
           # Troque SEU_USUARIO_DOCKERHUB pelo seu usuário do Docker Hub antes do

@@ -1,0 +1,106 @@
+# ABOUTME: Pipeline de switch blue/green: realiza o cutover do tráfego de produção.
+# ABOUTME: Valida a saúde do slot e direciona o Service de produção para blue ou green.
+#
+# Este workflow é o cutover: vira o tráfego de produção para a cor escolhida,
+# alterando APENAS o selector do Service de produção. O Ingress e os hosts nunca
+# mudam. Rollback = rodar de novo com a cor anterior, que continua rodando.
+#
+# Referência: docs/cd-pipeline.md
+
+name: CD Blue/Green switch
+
+run-name: 'Blue/Green switch → tráfego para ${{ inputs.color }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      color:
+        description: 'Cor que deve receber o tráfego de produção'
+        required: true
+        type: choice
+        options:
+          - blue
+          - green
+        default: blue
+
+permissions:
+  contents: read
+
+env:
+  NAMESPACE: todolist-bg
+
+jobs:
+  switch:
+    name: Vira o tráfego de produção
+    runs-on: ubuntu-latest
+    steps:
+      # Note que não há checkout: o switch não usa nenhum arquivo do repo, só
+      # muda o estado de um Service que já existe no cluster.
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Confirma saúde do slot e vira o tráfego
+        env:
+          KIND_CLUSTER: ${{ vars.KIND_CLUSTER || 'devops-labs' }}
+          COLOR: ${{ inputs.color }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            "KIND_CLUSTER='${KIND_CLUSTER}' NS='${NAMESPACE}' COLOR='${COLOR}' bash -s" <<'EOF'
+            set -euo pipefail
+
+            kubectl config use-context "kind-${KIND_CLUSTER}"
+
+            echo "Verificando saúde do slot ${COLOR}..."
+
+            for _ in $(seq 1 20); do
+              if curl -fsS \
+                -H "Host: ${COLOR}.todolist-bg.local" \
+                http://localhost/healthz; then
+                break
+              fi
+              sleep 3
+            done
+
+            if ! curl -fsS \
+              -H "Host: ${COLOR}.todolist-bg.local" \
+              http://localhost/healthz >/dev/null; then
+              echo "Slot ${COLOR} não está saudável. Switch abortado."
+              exit 1
+            fi
+
+            PREV=$(kubectl get svc todolist -n "${NS}" \
+              -o jsonpath='{.spec.selector.color}')
+
+            echo "Cor atualmente em produção: ${PREV}"
+            echo "Nova cor de produção: ${COLOR}"
+
+            kubectl patch svc todolist -n "${NS}" \
+              -p "{\"spec\":{\"selector\":{\"app\":\"todolist\",\"color\":\"${COLOR}\"}}}"
+
+            echo "Confirmando produção..."
+
+            for _ in $(seq 1 20); do
+              if curl -fsS \
+                -H "Host: todolist-bg.local" \
+                http://localhost/healthz; then
+                break
+              fi
+              sleep 3
+            done
+
+            if ! curl -fsS \
+              -H "Host: todolist-bg.local" \
+              http://localhost/healthz >/dev/null; then
+              echo "Smoke test de produção falhou após o switch."
+              exit 1
+            fi
+
+            echo "Switch concluído com sucesso."
+            echo "Rollback: execute este workflow novamente com color=${PREV}"
+
+          EOF
