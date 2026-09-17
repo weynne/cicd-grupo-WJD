@@ -16,7 +16,7 @@
 *                       @weynne @diegotavares16 @jessicacamarco
 
 # CI/CD workflows.
-/.github/workflows/     @weynne @diegotavares16
+/.github/workflows/     @weynne @jessicacamarco
 
 # Deployment manifests.
 /k8s/                   @weynne @jessicacamarco
