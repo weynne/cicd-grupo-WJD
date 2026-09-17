@@ -46,6 +46,7 @@ objeto de estudo é o **pipeline**, não a aplicação.
   - [Uso de Secrets no GitHub Actions](#uso-de-secrets-no-github-actions)
   - [Referência da imagem no Kubernetes](#referência-da-imagem-no-kubernetes)
   - [Relação entre CI e CD](#relação-entre-ci-e-cd)
+  - [Evolução da Atividade 1 para a Atividade 2](#evolução-da-atividade-1-para-a-atividade-2)
   - [Preparação do ambiente de deployment](#preparação-do-ambiente-de-deployment)
   - [Configuração do Ingress](#configuração-do-ingress)
   - [Deploy da aplicação no Kubernetes](#deploy-da-aplicação-no-kubernetes)
@@ -68,6 +69,7 @@ objeto de estudo é o **pipeline**, não a aplicação.
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Arquivo por arquivo](#arquivo-por-arquivo)
 - [Variáveis, inputs e secrets](#variáveis-inputs-e-secrets)
+- [Inputs do CD](#inputs-do-cd)
 - [Verificação](#verificação)
 - [Solução de problemas](#solução-de-problemas)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
@@ -83,8 +85,9 @@ objeto de estudo é o **pipeline**, não a aplicação.
 
   ## A entrega em um minuto
 
-  - **O que bloqueia o merge:** lint, testes em três versões do Python e dois scans
-    de segurança, todos obrigatórios no ruleset da `main`.
+  - **O que bloqueia o merge:** lint, testes em três versões do Python, dois scans
+  de segurança e a construção da imagem Docker, todos cobertos pelos checks obrigatórios
+  do ruleset da `main`.
   - **Como foi comprovado:** um PR com uma versão vulnerável do `requests` ficou
     vermelho, teve o merge bloqueado e voltou ao verde com a correção — ver
     [Evidências da entrega](#evidências-da-entrega).
@@ -531,6 +534,24 @@ nova versão em um dos ambientes e a troca de tráfego ocorre em uma etapa separ
 > cluster Kubernetes. Depois dessa etapa inicial, o pipeline de CI passou
 > a realizar o fluxo de build e publicação da imagem.
 
+### Evolução da Atividade 1 para a Atividade 2
+
+A Atividade 2 reutiliza a estrutura de CI construída na Atividade 1 e amplia o pipeline
+com a etapa de **Entrega Contínua (CD)**.
+
+Na Atividade 1, o foco estava na validação do código, nos gates de qualidade e segurança,
+nos testes automatizados e na publicação da imagem Docker. Na Atividade 2, essa imagem
+passa a ser utilizada como artefato de entrada para o deployment no Kubernetes.
+
+Assim, a evolução foi:
+
+**Atividade 1:** código → CI → gates → imagem Docker
+
+**Atividade 2:** código → CI → gates → imagem Docker → CD → Kubernetes → validação → produção
+
+A imagem não é reconstruída no CD. O deployment utiliza a tag da imagem já publicada pelo
+CI, mantendo separadas as responsabilidades de integração e entrega.
+
 ### Preparação do ambiente de deployment
 
 O deployment utiliza uma instância **EC2** como ambiente de execução do
@@ -767,6 +788,14 @@ gh workflow run cd-blue-green-switch.yml -f color=green
 
 Após a troca, o ambiente selecionado passa a receber o tráfego de produção, enquanto o outro permanece disponível para rollback.
 
+A troca de tráfego não recria o Ingress nem altera os hosts utilizados pela aplicação.
+O workflow de switch modifica somente o `selector.color` do Service de produção, fazendo
+com que o mesmo endpoint passe a apontar para o Deployment da cor escolhida.
+
+Essa decisão reduz a quantidade de recursos alterados durante o cutover e torna a operação
+reversível: para realizar o rollback, basta executar novamente o switch apontando para a
+cor anterior.
+
 A estratégia permite validar a nova versão antes da troca do tráfego e realizar o retorno ao ambiente anterior caso necessário.
 
 ### Rollback
@@ -914,7 +943,7 @@ A validação da aplicação é feita pelo endpoint `/healthz`.
 
   | Nível | O que é | Aqui |
   | --- | --- | --- |
-  | **Workflow** | Arquivo YAML em `.github/workflows/`, disparado por eventos | `ci.yml`, `_reusable-test.yml` |
+  | **Workflow** | Arquivo YAML em `.github/workflows/`, disparado por eventos ou execução manual | `ci.yml`, `_reusable-test.yml`, `cd.yml`, `cd-blue-green.yml`, `cd-blue-green-switch.yml` |
   | **Job** | Grupo de steps que roda numa VM efêmera (*runner*) | `lint`, `test`, `push`, `deploy-staging`, `notify` |
   | **Step** | Um comando de shell ou uma chamada de Action | `ruff check .`, `pytest -v` |
   | **Action** | Código reutilizável, de terceiros ou próprio | `actions/checkout`, `aquasecurity/trivy-action` |
@@ -948,7 +977,9 @@ deployment, são necessários os requisitos abaixo.
   | Servidor no Discord com permissão de criar webhook | Notificação do pipeline |
   | Conta no Docker Hub, com um access token | Publicação da imagem |
 
-  Nenhuma credencial de nuvem é necessária.
+  As credenciais utilizadas pelo CD são armazenadas como **GitHub Secrets** e não precisam ser
+configuradas diretamente na máquina do usuário. O acesso ao ambiente Kubernetes ocorre por
+meio da EC2 utilizada pelo laboratório.
 
   ---
 
@@ -1123,25 +1154,33 @@ que os Pods façam o pull da imagem privada sem expor o token no manifesto.
 
   ## Estrutura do repositório
 
-  ```text
-  .
-  ├── .github/
-  │   ├── CODEOWNERS                          # donos por caminho; revisor automático
-  │   └── workflows/
-  │       ├── ci.yml                          # o pipeline desta entrega
-  │       ├── _reusable-test.yml              # steps de teste reutilizáveis
-  │       ├── validate-ssh.yml                # do starter-kit, fora do escopo desta entrega
-  │       └── cd*.yml.example                 # esqueletos inertes, fora do escopo desta entrega
-  ├── app.py                                  # Flask + SQLite (rota /healthz usada pelos gates)
-  ├── test_app.py                             # suíte pytest — 13 testes
-  ├── requirements.txt                        # dependências de produção — alvo dos scans
-  ├── requirements-dev.txt                    # pytest, ruff, pip-audit
-  ├── pyproject.toml                          # configuração do ruff
-  ├── Dockerfile                              # imagem da aplicação, publicada pelo job push
-  ├── k8s/                                    # manifestos Kubernetes usados pelo CD
-  ├── evidencias/                             # capturas da entrega, com índice próprio
-  └── docs/                                   # referências do starter-kit
-  ```
+```text
+.
+├── .github/
+│   ├── CODEOWNERS                          # donos por caminho; revisor automático
+│   └── workflows/
+│       ├── ci.yml                          # pipeline de CI
+│       ├── _reusable-test.yml              # steps de teste reutilizáveis
+│       ├── cd.yml                          # Rolling Update
+│       ├── cd-blue-green.yml               # deploy Blue/Green
+│       ├── cd-blue-green-switch.yml        # switch e rollback de tráfego
+│       ├── cd.yml.example                  # esqueleto original do starter-kit
+│       ├── cd-blue-green.yml.example       # esqueleto original do starter-kit
+│       ├── cd-blue-green-switch.yml.example # esqueleto original do starter-kit
+│       └── validate-ssh.yml                # validação SSH do starter-kit
+├── app.py                                  # Flask + SQLite (rota /healthz usada pelos gates)
+├── test_app.py                             # suíte pytest — 13 testes
+├── requirements.txt                        # dependências de produção — alvo dos scans
+├── requirements-dev.txt                    # pytest, ruff, pip-audit
+├── pyproject.toml                          # configuração do ruff
+├── Dockerfile                              # imagem da aplicação, publicada pelo job push
+├── k8s/
+│   ├── todolist.yaml                       # manifesto do Rolling Update
+│   └── blue-green/
+│       └── bootstrap.yaml                  # recursos iniciais do ambiente Blue/Green
+├── evidencias/                             # capturas da entrega, com índice próprio
+└── docs/                                   # referências do starter-kit
+```
 
   O prefixo `_` em `_reusable-test.yml` sinaliza workflow de apoio: chamado por
   outro via `uses:` e nunca disparado por evento próprio.
@@ -1150,17 +1189,21 @@ que os Pods façam o pull da imagem privada sem expor o token no manifesto.
 
   ## Arquivo por arquivo
 
-  O starter-kit entrega a aplicação e os manifestos prontos. O grupo criou ou
-  alterou apenas estes arquivos:
+O starter-kit entrega a aplicação e parte da estrutura inicial dos pipelines e manifestos.
+Ao longo das Atividades 1 e 2, o grupo criou, renomeou ou alterou os arquivos abaixo:
 
-  | Arquivo | O que fizemos | Como |
-  | --- | --- | --- |
-  | `.github/CODEOWNERS` | criado | renomeado de `CODEOWNERS.example` |
-  | `.github/workflows/ci.yml` | criado | renomeado de `ci.yml.example` |
-  | `.github/workflows/_reusable-test.yml` | criado | renomeado de `_reusable-test.yml.example` |
-  | `README.md` | substituído | era o README do professor |
-  | `evidencias/` | criado | capturas da entrega, com índice |
-  | `requirements.txt` | alterado e revertido | só nas branches de demonstração, nunca na `main` |
+| Arquivo | O que fizemos | Como |
+| --- | --- | --- |
+| `.github/CODEOWNERS` | criado | renomeado de `CODEOWNERS.example` |
+| `.github/workflows/ci.yml` | criado | renomeado de `ci.yml.example` |
+| `.github/workflows/_reusable-test.yml` | criado | renomeado de `_reusable-test.yml.example` |
+| `.github/workflows/cd.yml` | criado | workflow de Rolling Update |
+| `.github/workflows/cd-blue-green.yml` | criado | workflow de deploy Blue/Green |
+| `.github/workflows/cd-blue-green-switch.yml` | criado | workflow de switch e rollback de tráfego |
+| `k8s/` | utilizado e adaptado | manifestos utilizados pelo deployment |
+| `README.md` | substituído | documentação completa das Atividades 1 e 2 |
+| `evidencias/` | criado | capturas da entrega, com índice |
+| `requirements.txt` | alterado e revertido | apenas nas branches de demonstração, nunca na `main` |
 
   > [!NOTE]
   > O GitHub Actions só executa arquivos `.yml` e `.yaml` dentro de
@@ -1689,11 +1732,11 @@ a imagem durante o CD.
 
   Na interface do GitHub:
 
-  - **Actions** — o run do último push na `main` com os quatro checks verdes
-  - **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
-  - **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
-  - **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate reprova, com link para o run
-  - **Docker Hub** — a imagem `app-k8s-todolist` com `latest` e o hash curto do commit após um merge na `main`, e `PR-<número>` a cada pull request
+- **Actions** — o run do último push na `main` com os **cinco checks obrigatórios verdes**
+- **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
+- **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
+- **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate reprova, com link para o run
+- **Docker Hub** — a imagem `app-k8s-todolist` com `latest` e o hash curto do commit após um merge na `main`, e `PR-<número>` a cada pull request
 
   ---
 
@@ -2071,8 +2114,11 @@ recursos, pois os dois ambientes precisam permanecer disponíveis.
   da CESAR School.
 
   Aplicação, manifestos e esqueletos de workflow a partir do starter-kit da
-  disciplina. Os pipelines em `.github/workflows/ci.yml` e
-  `.github/workflows/_reusable-test.yml` são autoria do grupo.
+disciplina. Os workflows de CI e CD foram adaptados e implementados pelo grupo
+a partir dessa estrutura, incluindo `.github/workflows/ci.yml`,
+`.github/workflows/_reusable-test.yml`, `.github/workflows/cd.yml`,
+`.github/workflows/cd-blue-green.yml` e `.github/workflows/cd-blue-green-switch.yml`.
+Os manifestos utilizados no deployment também foram adaptados pelo grupo.
 
   Autoria: [@weynne](https://github.com/weynne) ·
   [@diegotavares16](https://github.com/diegotavares16) ·
