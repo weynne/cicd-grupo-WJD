@@ -1,0 +1,15 @@
+{
+  // Linha de 80 colunas para a prosa. Tabelas e blocos de código ficam de fora:
+  // quebrar uma linha de tabela a inutiliza, e o conteúdo de um bloco de código
+  // é o comando exato que se digita.
+  "config": {
+    "MD013": {
+      "line_length": 80,
+      "tables": false,
+      "code_blocks": false
+    }
+  },
+  // Material do starter-kit do professor: documentação de referência que o
+  // grupo não altera.
+  "ignores": ["docs/"]
+}
