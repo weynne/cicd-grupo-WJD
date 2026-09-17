@@ -128,8 +128,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 | Membro | GitHub | Frente principal |
 | --- | --- | --- |
 | Weynne Guimarães | [@weynne](https://github.com/weynne) | Dono do repositório: configuração, branch protection e pipeline de CI |
-| Diego Tavares | [@diegotavares16](https://github.com/diegotavares16) | Environment e notificações; code owner dos workflows |
-| Jéssica Camarco | [@jessicacamarco](https://github.com/jessicacamarco) | Gates de segurança e documentação; code owner dos manifestos |
+| Diego Tavares | [@diegotavares16](https://github.com/diegotavares16) | Environment e notificações |
+| Jéssica Camarco | [@jessicacamarco](https://github.com/jessicacamarco) | Gates de segurança e documentação; code owner dos workflows e dos manifestos |
 
 ---
 
@@ -1075,15 +1075,16 @@ de um PR seja outra pessoa. Quem revisa faz o merge, e o autor aprova o deploy.
 
 ```text
 *                       @weynne @diegotavares16 @jessicacamarco
-/.github/workflows/     @weynne @diegotavares16
+/.github/workflows/     @weynne @jessicacamarco
 /k8s/                   @weynne @jessicacamarco
 ```
 
 A última regra que corresponde ao caminho é a que vale. Cada área tem um
 mantenedor ao lado do dono do repositório, então a revisão cai em quem conhece
-aquela parte: pipeline com [@diegotavares16](https://github.com/diegotavares16),
-manifestos com [@jessicacamarco](https://github.com/jessicacamarco). O que não
-corresponde a nenhuma regra específica o time revisa entre si, pela regra `*`.
+aquela parte: workflows e manifestos com
+[@jessicacamarco](https://github.com/jessicacamarco). O que não corresponde a
+nenhuma regra específica o time revisa entre si, pela regra `*` — é por ela que
+[@diegotavares16](https://github.com/diegotavares16) revisa o restante.
 
 > [!NOTE]
 > Toda regra lista no mínimo **dois** donos de propósito. O autor de um PR não
@@ -1206,100 +1207,7 @@ pedir revisão quando um PR altera aquele caminho.
 
 ```text
 *                       @weynne @diegotavares16 @jessicacamarco
-/.github/workflows/     @weynne @diegotavares16
-/k8s/                   @weynne @jessicacamarco
-```
-
-| Bloco | O que faz |
-| --- | --- |
-| `*` | Regra de fundo: qualquer arquivo que não corresponda às outras. O time inteiro revisa |
-| `/.github/workflows/` | Mudança no pipeline. Revisão do dono do repositório ou do mantenedor do CI |
-| `/k8s/` | Manifestos de deploy. Dono do repositório ou a mantenedora dos manifestos |
-
-**A última regra que corresponde é a que vale**, não a primeira. Um PR que
-altera o `ci.yml` cai na segunda regra e ignora a primeira. Quem lê o arquivo de
-cima para baixo costuma supor o contrário — é o erro de leitura mais comum.
-
-**Toda regra tem no mínimo dois donos.** O autor de um PR não pode aprovar o
-próprio PR: numa regra de dono único, todo PR aberto por ele ficaria sem revisor
-possível e o merge travaria para sempre.
-
-Para o arquivo ter efeito, duas condições: os usuários precisam ter acesso de
-**escrita** e ter **aceito** o convite de colaborador — convite pendente faz o
-GitHub exibir "Unknown owner" e ignorar a linha em silêncio. E o ruleset da
-`main` precisa de **Require review from Code Owners** marcado, senão o arquivo
-só sugere revisores sem obrigar ninguém.
-
----
-
-### `.github/workflows/ci.yml`
-
-```bash
-git mv .github/workflows/ci.yml.example .github/workflows/ci.yml
-```
-
-
-## Estrutura do repositório
-
-```text
-.
-├── .github/
-│   ├── CODEOWNERS                          # donos por caminho; revisor automático
-│   └── workflows/
-│       ├── ci.yml                          # o pipeline desta entrega
-│       ├── _reusable-test.yml              # steps de teste reutilizáveis
-│       ├── validate-ssh.yml                # do starter-kit, fora do escopo desta entrega
-│       └── cd*.yml.example                 # esqueletos inertes, fora do escopo desta entrega
-├── app.py                                  # Flask + SQLite (rota /healthz usada pelos gates)
-├── test_app.py                             # suíte pytest — 13 testes
-├── requirements.txt                        # dependências de produção — alvo dos scans
-├── requirements-dev.txt                    # pytest, ruff, pip-audit
-├── pyproject.toml                          # configuração do ruff
-├── Dockerfile                              # imagem da aplicação, publicada pelo job push
-  ├── k8s/                                    # manifestos Kubernetes usados pelo CD
-├── evidencias/                             # capturas da entrega, com índice próprio
-└── docs/                                   # referências do starter-kit
-```
-
-O prefixo `_` em `_reusable-test.yml` sinaliza workflow de apoio: chamado por
-outro via `uses:` e nunca disparado por evento próprio.
-
----
-
-## Arquivo por arquivo
-
-O starter-kit entrega a aplicação e os manifestos prontos. O grupo criou ou
-alterou apenas estes arquivos:
-
-| Arquivo | O que fizemos | Como |
-| --- | --- | --- |
-| `.github/CODEOWNERS` | criado | renomeado de `CODEOWNERS.example` |
-| `.github/workflows/ci.yml` | criado | renomeado de `ci.yml.example` |
-| `.github/workflows/_reusable-test.yml` | criado | renomeado de `_reusable-test.yml.example` |
-| `README.md` | substituído | era o README do professor |
-| `evidencias/` | criado | capturas da entrega, com índice |
-| `requirements.txt` | alterado e revertido | só nas branches de demonstração, nunca na `main` |
-
-> [!NOTE]
-> O GitHub Actions só executa arquivos `.yml` e `.yaml` dentro de
-> `.github/workflows/`. O sufixo `.example` é o que mantém os esqueletos inertes
-> até serem renomeados — por isso cada arquivo nasce de um `git mv`, e não de um
-> arquivo novo: assim o histórico mostra que ele veio do esqueleto.
-
----
-
-### `.github/CODEOWNERS`
-
-```bash
-git mv .github/CODEOWNERS.example .github/CODEOWNERS
-```
-
-Três regras, uma por linha. Cada uma associa um caminho a quem o GitHub deve
-pedir revisão quando um PR altera aquele caminho.
-
-```text
-*                       @weynne @diegotavares16 @jessicacamarco
-/.github/workflows/     @weynne @diegotavares16
+/.github/workflows/     @weynne @jessicacamarco
 /k8s/                   @weynne @jessicacamarco
 ```
 
