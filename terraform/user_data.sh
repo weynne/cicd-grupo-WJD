@@ -9,6 +9,13 @@ KIND_VERSION="${kind_version}"
 LAB_USER="ec2-user"
 LAB_HOME="/home/$LAB_USER"
 
+# O cloud-init roda com HOME=/, e o kind grava o kubeconfig em $HOME/.kube/config.
+# Sem fixar os dois, o arquivo aparece em /.kube/config e o kubectl dos passos
+# seguintes nao encontra o cluster.
+export HOME=/root
+export KUBECONFIG=/root/.kube/config
+mkdir -p /root/.kube
+
 echo "=== 1/6 Docker ==="
 dnf install -y docker
 systemctl enable --now docker
@@ -64,12 +71,13 @@ nodes:
         protocol: TCP
 KINDCONF
 
-kind create cluster --name "$KIND_CLUSTER" --config /root/kind-config.yaml --wait 5m
+kind create cluster --name "$KIND_CLUSTER" --config /root/kind-config.yaml \
+  --kubeconfig "$KUBECONFIG" --wait 5m
 
 # O cluster é criado por root, mas quem entra por SSH é o ec2-user: o kubeconfig
 # precisa estar na casa dele para os workflows de CD acharem o contexto.
 install -d -o "$LAB_USER" -g "$LAB_USER" -m 700 "$LAB_HOME/.kube"
-install -o "$LAB_USER" -g "$LAB_USER" -m 600 /root/.kube/config "$LAB_HOME/.kube/config"
+install -o "$LAB_USER" -g "$LAB_USER" -m 600 "$KUBECONFIG" "$LAB_HOME/.kube/config"
 
 echo "=== 5/6 ingress-nginx ==="
 kubectl apply -f \
