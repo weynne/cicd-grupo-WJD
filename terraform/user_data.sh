@@ -87,12 +87,15 @@ kubectl wait --namespace ingress-nginx \
   --selector=app.kubernetes.io/component=controller \
   --timeout=300s
 
-echo "=== 6/6 namespaces da aplicação ==="
-# Criados aqui para que o secret do Docker Hub possa ser cadastrado antes do
+echo "=== 6/6 namespace da aplicação ==="
+# Criado aqui para que o secret do Docker Hub possa ser cadastrado antes do
 # primeiro deploy. O workflow de Blue/Green copia esse secret de todolist para
 # todolist-bg e falha se ele não existir.
+#
+# O todolist-bg NÃO é criado aqui de propósito: o cd-blue-green.yml só aplica o
+# bootstrap dos dois slots quando o namespace ainda não existe. Criá-lo antes
+# deixaria o cluster sem os Deployments blue e green.
 kubectl create namespace todolist --dry-run=client -o yaml | kubectl apply -f -
-kubectl create namespace todolist-bg --dry-run=client -o yaml | kubectl apply -f -
 
 touch /var/lib/cloud/cicd-lab-ready
 echo "=== bootstrap concluído ==="
