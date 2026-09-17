@@ -79,3 +79,19 @@ pelo metadata service. Esse passo continua manual, e está no output
   associado, o endereço sobrevive ao stop/start e o `EC2_HOST` continua válido.
 - Ao fim do curso: `terraform destroy`, e depois revogue o access token do Docker
   Hub e remova o webhook do Discord.
+
+## Depois de um stop/start da instância
+
+O cluster kind roda dentro de um container Docker. Parar a EC2 derruba esse
+container de forma abrupta, e nem sempre o Docker o levanta sozinho no boot
+seguinte. Se um workflow de CD falhar logo depois de uma retomada do lab, entre
+na VM e confira:
+
+```bash
+docker ps -a --filter name=devops-labs
+docker start devops-labs-control-plane   # se estiver como Exited
+kubectl get nodes
+```
+
+O `docker start` recupera o cluster com os deployments e os secrets intactos: o
+estado vive no volume do container, não no comando que o criou.
