@@ -23,11 +23,10 @@ spec:
       labels:
         app: todolist
     spec:
-      template:
-    spec:
+      # A imagem é pública, mas o cluster também guarda a credencial do Docker
+      # Hub: o secret cobre o caso de o repositório virar privado.
       imagePullSecrets:
         - name: dockerhub-secret
-        
       containers:
         - name: todolist
           # Troque SEU_USUARIO_DOCKERHUB pelo seu usuário do Docker Hub.
