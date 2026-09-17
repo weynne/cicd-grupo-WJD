@@ -128,8 +128,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 | Membro | GitHub | Frente principal |
 | --- | --- | --- |
 | Weynne Guimarães | [@weynne](https://github.com/weynne) | Dono do repositório: configuração, branch protection e pipeline de CI |
-| Diego Tavares | [@diegotavares16](https://github.com/diegotavares16) | Environment e notificações; code owner dos workflows |
-| Jéssica Camarco | [@jessicacamarco](https://github.com/jessicacamarco) | Gates de segurança e documentação; code owner dos manifestos |
+| Diego Tavares | [@diegotavares16](https://github.com/diegotavares16) | Environment e notificações |
+| Jéssica Camarco | [@jessicacamarco](https://github.com/jessicacamarco) | Gates de segurança e documentação; code owner dos workflows e dos manifestos |
 
 ---
 
@@ -1075,15 +1075,16 @@ de um PR seja outra pessoa. Quem revisa faz o merge, e o autor aprova o deploy.
 
 ```text
 *                       @weynne @diegotavares16 @jessicacamarco
-/.github/workflows/     @weynne @diegotavares16
+/.github/workflows/     @weynne @jessicacamarco
 /k8s/                   @weynne @jessicacamarco
 ```
 
 A última regra que corresponde ao caminho é a que vale. Cada área tem um
 mantenedor ao lado do dono do repositório, então a revisão cai em quem conhece
-aquela parte: pipeline com [@diegotavares16](https://github.com/diegotavares16),
-manifestos com [@jessicacamarco](https://github.com/jessicacamarco). O que não
-corresponde a nenhuma regra específica o time revisa entre si, pela regra `*`.
+aquela parte: workflows e manifestos com
+[@jessicacamarco](https://github.com/jessicacamarco). O que não corresponde a
+nenhuma regra específica o time revisa entre si, pela regra `*` — é por ela que
+[@diegotavares16](https://github.com/diegotavares16) revisa o restante.
 
 > [!NOTE]
 > Toda regra lista no mínimo **dois** donos de propósito. O autor de um PR não
@@ -1147,17 +1148,23 @@ docker run --rm -p 8080:5000 -e APP_COLOR=blue -e SESSION_KEY=local todolist:dev
 ├── .github/
 │   ├── CODEOWNERS                          # donos por caminho; revisor automático
 │   └── workflows/
-│       ├── ci.yml                          # o pipeline desta entrega
+│       ├── ci.yml                          # o pipeline de integração contínua
 │       ├── _reusable-test.yml              # steps de teste reutilizáveis
-│       ├── validate-ssh.yml                # do starter-kit, fora do escopo desta entrega
-│       └── cd*.yml.example                 # esqueletos inertes, fora do escopo desta entrega
+│       ├── cd.yml                          # deploy no cluster por rolling update
+│       ├── cd-blue-green.yml               # deploy em um dos slots, sem trocar o tráfego
+│       ├── cd-blue-green-switch.yml        # troca o tráfego de produção de slot
+│       ├── validate-ssh.yml                # testa o canal SSH com a EC2
+│       └── cd*.yml.example                 # esqueletos do starter-kit, mantidos como referência
 ├── app.py                                  # Flask + SQLite (rota /healthz usada pelos gates)
 ├── test_app.py                             # suíte pytest — 13 testes
 ├── requirements.txt                        # dependências de produção — alvo dos scans
 ├── requirements-dev.txt                    # pytest, ruff, pip-audit
 ├── pyproject.toml                          # configuração do ruff
 ├── Dockerfile                              # imagem da aplicação, publicada pelo job push
-  ├── k8s/                                    # manifestos Kubernetes usados pelo CD
+├── k8s/                                    # manifestos Kubernetes usados pelo CD
+│   ├── todolist.yaml                       # namespace, Deployment, Service e Ingress
+│   └── blue-green/bootstrap.yaml           # os dois slots e o Service de produção
+├── terraform/                              # a EC2 com kind e ingress-nginx, como código
 ├── evidencias/                             # capturas da entrega, com índice próprio
 └── docs/                                   # referências do starter-kit
 ```
@@ -1200,7 +1207,7 @@ pedir revisão quando um PR altera aquele caminho.
 
 ```text
 *                       @weynne @diegotavares16 @jessicacamarco
-/.github/workflows/     @weynne @diegotavares16
+/.github/workflows/     @weynne @jessicacamarco
 /k8s/                   @weynne @jessicacamarco
 ```
 
@@ -2031,6 +2038,8 @@ o webhook e o link do run. Além disso:
 | Deploy e troca de tráfego separados no Blue/Green | O fluxo apresenta as duas etapas, mas não as combina em um único workflow | Permite validar a nova versão antes de direcionar o tráfego de produção |
 | Smoke test após o `rollout status` | O deployment e a validação são etapas distintas | O pipeline só considera a versão disponível depois que o rollout termina e o endpoint `/healthz` responde |
 | Uso da tag da imagem como input do CD | A imagem é o artefato produzido pelo CI | Permite implantar uma versão já publicada sem reconstruí-la |
+| Ambiente provisionado por Terraform | O guia da VM é um passo a passo manual no console da AWS | A EC2, o security group e o bootstrap do cluster viram código versionado, refazível com um comando; ver [`terraform/`](terraform/README.md) |
+| Elastic IP na instância do laboratório | O material avisa que o `EC2_HOST` muda a cada stop/start | O endereço sobrevive ao ciclo de sessões do Learner Lab, e o secret `EC2_HOST` não precisa ser reeditado |
 | Rollback do Blue/Green por troca do Service | O material descreve o retorno para a versão anterior | O tráfego pode voltar para o ambiente anterior sem reconstruir a imagem |
 | Validação dos dois ambientes antes da troca | Não aparece como uma etapa independente | Permite verificar `blue` e `green` antes de alterar o tráfego de produção |
 

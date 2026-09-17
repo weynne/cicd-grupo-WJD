@@ -1,0 +1,15 @@
+# Copie para terraform.tfvars e ajuste o que quiser. Todos os valores abaixo já
+# são os padrões — o arquivo existe para mostrar o que dá para mudar sem ler o
+# variables.tf inteiro.
+
+# aws_region        = "us-east-1"
+# project_name      = "cicd-wjd"
+# instance_type     = "t3.small"
+# root_volume_size  = 30
+# kind_cluster_name = "devops-labs"
+# kind_version      = "v0.24.0"
+# allocate_eip      = true
+
+# Restringe o SSH ao seu IP. Atenção: o runner do GitHub Actions não sai de um
+# IP fixo, então fechar a 22 aqui derruba o CD.
+# ssh_ingress_cidr  = "0.0.0.0/0"

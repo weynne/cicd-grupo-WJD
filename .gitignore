@@ -6,3 +6,13 @@ venv/
 .ruff_cache/
 *.db
 .vscode/settings.json
+
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+tfplan
+*.tfplan
+crash.log
