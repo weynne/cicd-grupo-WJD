@@ -2,9 +2,10 @@
 
 Capturas dos pipelines de CI e de CD do grupo WJD em funcionamento, agrupadas
 pelo requisito que cada uma demonstra. As da Atividade 1 seguem o nome
-`evidencia_NN_assunto.png`; as da Atividade 2, `NN-assunto.png`. A tabela *Evidências da entrega* do
-[README principal](../README.md#evidências-da-entrega) aponta para estas mesmas
-capturas a partir de cada item do enunciado.
+`evidencia_NN_assunto.png`; as da Atividade 2, `NN-assunto.png`. A tabela
+*Evidências da entrega* do [README
+principal](../README.md#evidências-da-entrega) aponta para estas mesmas capturas
+a partir de cada item do enunciado.
 
 | # | Arquivo | O que demonstra |
 | --- | --- | --- |
@@ -44,17 +45,17 @@ aguardou aprovação.
 
 ![Badge do CI verde no topo do README](evidencia_10_badge_verde.png)
 
-**10 —** O badge reflete o último run da branch padrão. Ele só passa a
-responder depois que o `ci.yml` existe na `main`.
+**10 —** O badge reflete o último run da branch padrão. Ele só passa a responder
+depois que o `ci.yml` existe na `main`.
 
 ## Proteção da `main`
 
 ![Ruleset main protection com os quatro checks obrigatórios](evidencia_08_required_checks.png)
 
 **08 —** Ruleset *main protection*: os quatro checks obrigatórios pelo nome
-exato e a exigência de branch atualizada antes do merge. O
-`Deploy to staging (dummy)` fica fora da lista de propósito — ele não roda em
-pull request e, se fosse obrigatório, bloquearia todo merge.
+exato e a exigência de branch atualizada antes do merge. O `Deploy to staging
+(dummy)` fica fora da lista de propósito — ele não roda em pull request e, se
+fosse obrigatório, bloquearia todo merge.
 
 ![PR #2 com os checks obrigatórios verdes](evidencia_01_ci_checks_verdes.png)
 
@@ -86,10 +87,10 @@ ele reprova os mesmos três CVEs. As versões de correção — 2.32.0, 2.32.4 e
 
 ![Code scanning results do Trivy com três alertas medium](evidencia_03_trivy_security.png)
 
-**03 —** O SARIF enviado pelo pipeline aparece no pull request como três
-alertas `MEDIUM` na linha 3 do `requirements.txt`: CVE-2024-35195,
-CVE-2024-47081 e CVE-2026-25645. A faixa de severidade do Trivy começa em
-`MEDIUM` justamente porque, com `HIGH,CRITICAL`, esses três passariam.
+**03 —** O SARIF enviado pelo pipeline aparece no pull request como três alertas
+`MEDIUM` na linha 3 do `requirements.txt`: CVE-2024-35195, CVE-2024-47081 e
+CVE-2026-25645. A faixa de severidade do Trivy começa em `MEDIUM` justamente
+porque, com `HIGH,CRITICAL`, esses três passariam.
 
 ![Check do Trivy sem alertas no PR #2](extras/sarif_upload_no_pr.png)
 
@@ -109,9 +110,9 @@ mudança líquida em relação à `main` é nula.
 
 ![Grafo do run com as três versões em paralelo](evidencia_02_matrix_paralela.png)
 
-**02 —** As três versões rodam em paralelo — 46 s, 45 s e 43 s, que somariam
-134 s em série —, com o `Lint` ao lado, em 17 s. Com `fail-fast: false`, a falha
-de uma versão não cancela as outras.
+**02 —** As três versões rodam em paralelo — 46 s, 45 s e 43 s, que somariam 134
+s em série —, com o `Lint` ao lado, em 17 s. Com `fail-fast: false`, a falha de
+uma versão não cancela as outras.
 
 ![Step de cache com cache hit](evidencia_09_cache_hit.png)
 
@@ -142,8 +143,8 @@ primeiro o deploy aparece `skipped`, no segundo `success` — o `notify` trata
 
 ![Card vermelho do run #12 seguido do card verde do run #13](evidencia_15_discord_falha.png)
 
-**15 —** O card vermelho do run #12 aponta o gate que falhou; logo abaixo, o card
-verde do run #13, no mesmo pull request, registra a recuperação.
+**15 —** O card vermelho do run #12 aponta o gate que falhou; logo abaixo, o
+card verde do run #13, no mesmo pull request, registra a recuperação.
 
 ![Card do teste de injeção com o nome de branch malicioso](extras/injecao_neutralizada.png)
 
@@ -169,10 +170,10 @@ a action por SHA, como no CI.
 
 ![Slot green respondendo em green.todolist-bg.local](02-blue-green-pagina-web-green.png)
 
-**CD 02 —** Os dois slots publicados, cada um no seu host: `blue.todolist-bg.local`
-e `green.todolist-bg.local`. A cor da interface vem do `APP_COLOR` de cada
-Deployment, o que torna visível qual versão está respondendo. Nesta etapa o
-tráfego de produção ainda não mudou.
+**CD 02 —** Os dois slots publicados, cada um no seu host:
+`blue.todolist-bg.local` e `green.todolist-bg.local`. A cor da interface vem do
+`APP_COLOR` de cada Deployment, o que torna visível qual versão está
+respondendo. Nesta etapa o tráfego de produção ainda não mudou.
 
 ![Produção servindo a cor green](03-blue-green-switch-producao.png)
 
