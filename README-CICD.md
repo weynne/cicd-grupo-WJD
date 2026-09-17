@@ -811,7 +811,7 @@ No Blue/Green, a versão anterior permanece disponível durante o processo, perm
 
   Abra o PR pela interface do GitHub. O workflow dispara imediatamente, e a aba
   **Checks** do PR mostra o status ao vivo. O botão de merge só libera quando os
-  quatro checks obrigatórios ficam verdes **e** um code owner que não seja o autor
+  cinco checks obrigatórios ficam verdes **e** um code owner que não seja o autor
   aprova o PR.
 
   ### 2. Reproduzir a demonstração de shift-left
@@ -901,10 +901,10 @@ A validação da aplicação é feita pelo endpoint `/healthz`.
 | 5 | `Deploy to staging` aguardando aprovação humana | [run #3](https://github.com/weynne/cicd-grupo-WJD/actions/runs/34727936018) · [aguardando](evidencias/evidencia_05_deploy_waiting.png) · [aprovado](evidencias/evidencia_06_deploy_aprovado.png) |
 | 6 | Relatório do Trivy no code scanning | [PR #7](https://github.com/weynne/cicd-grupo-WJD/pull/7) · [captura](evidencias/evidencia_03_trivy_security.png) |
 | 7 | Notificação de sucesso e de falha no canal do Discord | [sucesso](evidencias/evidencia_04_discord_sucesso.png) · [falha e recuperação](evidencias/evidencia_15_discord_falha.png) |
-| 8 | Deploy do ambiente **Blue** no cluster Kubernetes | [evidência](evidencias/02-blue-green-slot-blue-web.png) |
-| 9 | Deploy do ambiente **Green** no cluster Kubernetes | [evidência](evidencias/03-blue-green-slot-green-web.png) |
-| 10 | Troca do tráfego de produção para o ambiente **Green** | [evidência](evidencias/04-blue-green-switch-producao-green.png) |
-| 11 | **Rollback** do tráfego de produção para o ambiente **Blue** | [evidência](evidencias/05-blue-green-rollback-producao-blue.png) |
+| 8 | Deploy do ambiente **Blue** no cluster Kubernetes | [evidência](evidencias/02-blue-green-pagina-web-blue.png) |
+| 9 | Deploy do ambiente **Green** no cluster Kubernetes | [evidência](evidencias/02-blue-green-pagina-web-green.png) |
+| 10 | Troca do tráfego de produção para o ambiente **Green** | [evidência](evidencias/03-blue-green-switch-producao.png) |
+| 11 | **Rollback** do tráfego de produção para o ambiente **Blue** | [evidência](evidencias/04-blue-green-rollback-producao.png) |
 
   ---
 
@@ -969,7 +969,7 @@ Kubernetes sem armazenar credenciais diretamente no repositório.
   | Dismiss stale pull request approvals when new commits are pushed | marcado | Um commit novo derruba a aprovação anterior |
   | Require review from Code Owners | marcado | Ativa o efeito do `CODEOWNERS` |
   | Allowed merge methods | somente *Squash* | Um commit por PR na `main` |
-  | Require status checks to pass | os 4 checks obrigatórios abaixo | **É este item que bloqueia o merge** |
+  | Require status checks to pass | os 5 checks obrigatórios abaixo | **É este item que bloqueia o merge** |
   | Require branches to be up to date before merging | marcado | Os checks precisam ter rodado sobre a `main` atual, não sobre uma antiga |
   | Require linear history | marcado | Sem merge commits na `main` |
   | Block force pushes | marcado | Preserva o histórico |
