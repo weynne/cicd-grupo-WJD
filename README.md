@@ -463,19 +463,19 @@ por uma execução do CI que passou pelas verificações obrigatórias.
 ### Uso de Secrets no GitHub Actions
 
 Para evitar que informações de configuração fiquem gravadas diretamente
-no workflow, o usuário do Docker Hub utilizado pelo CD é armazenado como
-um GitHub Secret.
+no workflow, o usuário do Docker Hub é armazenado como um GitHub Secret.
 
-O secret utilizado pelo projeto é:
+O CI e o CD usam **o mesmo** secret, e é isso que garante que o deployment
+receba exatamente a imagem que o pipeline publicou:
 
 ```text
-DOCKERHUB_USERNAME_JESSICA
+DOCKERHUB_USERNAME
 ```
 
 O workflow utiliza esse secret para montar o nome completo da imagem:
 
 ```yaml
-IMAGE: ${{ secrets.DOCKERHUB_USERNAME_JESSICA }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
 ```
 
 A estrutura resultante é:
@@ -486,7 +486,7 @@ A estrutura resultante é:
 
 Nesse processo:
 
-- `DOCKERHUB_USERNAME_JESSICA` fornece o usuário do Docker Hub;
+- `DOCKERHUB_USERNAME` fornece o usuário do Docker Hub, o mesmo que o CI usa para publicar;
 - `IMAGE_NAME` define o nome da imagem;
 - `inputs.image_tag` define a versão da imagem utilizada no deployment.
 
@@ -614,12 +614,14 @@ Para o acesso local, foi configurado o domínio `todolist.local` no arquivo `/et
 
 A aplicação foi publicada no cluster Kubernetes utilizando o manifesto `k8s/todolist.yaml`.
 
-Para permitir o acesso à imagem privada do Docker Hub, foi configurado um secret de autenticação no namespace `todolist`.
+A imagem publicada pelo CI é pública. Ainda assim, o cluster guarda a credencial do Docker Hub
+num secret de autenticação no namespace `todolist`, que cobre o caso de o repositório da imagem
+passar a privado.
 
 ```bash
 kubectl create secret docker-registry dockerhub-secret \
   --docker-server=https://index.docker.io/v1/ \
-  --docker-username=<USUARIO_DOCKERHUB_JESSICA> \
+  --docker-username=<USUARIO_DOCKERHUB> \
   --docker-password='<TOKEN_DOCKERHUB>' \
   -n todolist
 
@@ -635,10 +637,11 @@ kubectl get deployment -n todolist
 A imagem utilizada no projeto segue o padrão:
 
 ```text
-<USUARIO_DOCKERHUB_JESSICA>/app-k8s-todolist:latest
+<USUARIO_DOCKERHUB>/app-k8s-todolist:latest
 ```
 
-O manifesto utiliza o `imagePullSecrets` para que o Kubernetes consiga realizar o pull da imagem privada do Docker Hub.
+O manifesto declara o `imagePullSecrets` para que o Kubernetes use essa credencial caso a
+imagem deixe de ser pública.
 
 O `Service` da aplicação é do tipo `ClusterIP`. Ele fornece o endpoint interno para
 os Pods e é utilizado pelo Ingress para encaminhar as requisições recebidas pelo
@@ -1016,9 +1019,8 @@ Kubernetes sem armazenar credenciais diretamente no repositório.
 | --- | --- | --- |
 | `PYTHON_VERSIONS` | **Variables** | Versões de Python utilizadas na matrix do CI |
 | `NOTIFY_WEBHOOK_URL` | **Secrets** | URL do webhook do Discord |
-| `DOCKERHUB_USERNAME` | **Secrets** | Usuário do Docker Hub usado pelo CI para publicar a imagem |
+| `DOCKERHUB_USERNAME` | **Secrets** | Usuário do Docker Hub: o CI publica a imagem nessa conta e o CD monta a referência com ela |
 | `DOCKERHUB_TOKEN` | **Secrets** | Access token do Docker Hub com permissão *Read & Write* |
-| `DOCKERHUB_USERNAME_JESSICA` | **Secrets** | Usuário do Docker Hub utilizado pelo CD para montar a referência da imagem |
 | `STAGING_URL` | **Secrets** do environment `staging` | URL fictícia utilizada pelo deploy de staging |
 | `EC2_HOST` | **Secrets** | Endereço do host EC2 utilizado pelo CD |
 | `EC2_USER` | **Secrets** | Usuário utilizado para acesso à EC2 |
@@ -1026,8 +1028,9 @@ Kubernetes sem armazenar credenciais diretamente no repositório.
 
 Os valores sensíveis não são armazenados no repositório. O GitHub Actions os disponibiliza
 em tempo de execução por meio do contexto `secrets`. No caso do Kubernetes, as credenciais
-do Docker Hub também são armazenadas em um `docker-registry secret` no cluster, permitindo
-que os Pods façam o pull da imagem privada sem expor o token no manifesto.
+do Docker Hub também estão em um `docker-registry secret` no cluster. A imagem é pública,
+então o pull funcionaria sem ele; o secret cobre o caso de o repositório passar a privado,
+sem expor o token no manifesto.
 
   Se `PYTHON_VERSIONS` não existir, o `ci.yml` usa o valor de reserva e testa as
   mesmas três versões — o pipeline não quebra, só deixa de ser configurável sem commit.

