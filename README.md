@@ -614,12 +614,14 @@ Para o acesso local, foi configurado o domínio `todolist.local` no arquivo `/et
 
 A aplicação foi publicada no cluster Kubernetes utilizando o manifesto `k8s/todolist.yaml`.
 
-Para permitir o acesso à imagem privada do Docker Hub, foi configurado um secret de autenticação no namespace `todolist`.
+A imagem publicada pelo CI é pública. Ainda assim, o cluster guarda a credencial do Docker Hub
+num secret de autenticação no namespace `todolist`, que cobre o caso de o repositório da imagem
+passar a privado.
 
 ```bash
 kubectl create secret docker-registry dockerhub-secret \
   --docker-server=https://index.docker.io/v1/ \
-  --docker-username=<USUARIO_DOCKERHUB_JESSICA> \
+  --docker-username=<USUARIO_DOCKERHUB> \
   --docker-password='<TOKEN_DOCKERHUB>' \
   -n todolist
 
@@ -635,10 +637,11 @@ kubectl get deployment -n todolist
 A imagem utilizada no projeto segue o padrão:
 
 ```text
-<USUARIO_DOCKERHUB_JESSICA>/app-k8s-todolist:latest
+<USUARIO_DOCKERHUB>/app-k8s-todolist:latest
 ```
 
-O manifesto utiliza o `imagePullSecrets` para que o Kubernetes consiga realizar o pull da imagem privada do Docker Hub.
+O manifesto declara o `imagePullSecrets` para que o Kubernetes use essa credencial caso a
+imagem deixe de ser pública.
 
 O `Service` da aplicação é do tipo `ClusterIP`. Ele fornece o endpoint interno para
 os Pods e é utilizado pelo Ingress para encaminhar as requisições recebidas pelo
