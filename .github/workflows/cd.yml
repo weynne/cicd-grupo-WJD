@@ -6,7 +6,7 @@
 # remove o antigo.
 #
 # Referência: docs/cd-pipeline.md
-# Pré-requisitos: EC2_SSH_KEY, EC2_HOST, EC2_USER, DOCKERHUB_USERNAME_JESSICA
+# Pré-requisitos: EC2_SSH_KEY, EC2_HOST, EC2_USER, DOCKERHUB_USERNAME
 # + variable KIND_CLUSTER.
 
 name: Rolling deployment
@@ -35,44 +35,62 @@ jobs:
     steps:
       # Traz k8s/todolist.yaml para o runner.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
+      # Os valores chegam por env:, e não interpolados no texto do script, pelo
+      # mesmo motivo do job notify do CI: no run: a expressão é colada antes de o
+      # shell existir. printf preserva as quebras de linha da chave privada.
       - name: Configure SSH key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Pin image tag in manifest
         env:
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME_JESSICA }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
         run: |
           sed -i "s#image: .*${IMAGE_NAME}.*#image: ${IMAGE}#" k8s/todolist.yaml
           grep 'image:' k8s/todolist.yaml
 
       - name: Copy manifest to EC2
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
             k8s/todolist.yaml \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/todolist.yaml"
+            "$EC2_USER@$EC2_HOST:~/todolist.yaml"
 
+      # O heredoc é aspeado ('EOF'), então nada é expandido aqui no runner: o
+      # script chega inteiro à EC2. Os valores viajam como variáveis de ambiente
+      # na própria linha do ssh.
       - name: Apply and wait for rollout
         env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
           KIND_CLUSTER: ${{ vars.KIND_CLUSTER || 'devops-labs' }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" bash -s <<EOF
+            "$EC2_USER@$EC2_HOST" \
+            "KIND_CLUSTER='${KIND_CLUSTER}' NS='${NAMESPACE}' bash -s" <<'EOF'
             set -euo pipefail
             kubectl config use-context "kind-${KIND_CLUSTER}"
             kubectl apply -f ~/todolist.yaml
-            kubectl rollout status deployment/todolist -n ${NAMESPACE} --timeout=120s
+            kubectl rollout status deployment/todolist -n "${NS}" --timeout=120s
           EOF
 
       - name: Smoke test /healthz
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" bash -s <<'EOF'
+            "$EC2_USER@$EC2_HOST" bash -s <<'EOF'
             set -euo pipefail
             for _ in $(seq 1 20); do
               curl -fsS -H "Host: todolist.local" http://localhost/healthz && exit 0
