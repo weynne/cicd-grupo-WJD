@@ -1,5 +1,5 @@
-# ABOUTME: Minimal Kubernetes manifest to deploy the todolist app on kind.
-# ABOUTME: Namespace + Deployment + ClusterIP Service + Ingress (host todolist.local).
+# ABOUTME: Manifesto Kubernetes mínimo para implantar a todolist no kind.
+# ABOUTME: Namespace + Deployment + Service ClusterIP + Ingress (host todolist.local).
 ---
 apiVersion: v1
 kind: Namespace

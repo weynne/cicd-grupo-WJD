@@ -1,6 +1,6 @@
-# ABOUTME: Blue/Green bootstrap for the todolist app: two colored Deployments, one
-# ABOUTME: ClusterIP Service each, a production Service (selector flipped by the switch
-# ABOUTME: pipeline) and Ingresses routing production + per-color hosts via nginx.
+# ABOUTME: Bootstrap Blue/Green da todolist: dois Deployments coloridos, um Service
+# ABOUTME: ClusterIP para cada um, um Service de produção (cujo selector o pipeline de
+# ABOUTME: switch troca) e Ingresses roteando produção e um host por cor via nginx.
 ---
 apiVersion: v1
 kind: Namespace
@@ -113,7 +113,7 @@ spec:
         - name: data
           emptyDir: {}
 ---
-# Fixed per-color Service (direct access for testing the blue slot).
+# Service fixo da cor (acesso direto para testar o slot blue).
 apiVersion: v1
 kind: Service
 metadata:
@@ -131,7 +131,7 @@ spec:
     - port: 80
       targetPort: 5000
 ---
-# Fixed per-color Service (direct access for testing the green slot).
+# Service fixo da cor (acesso direto para testar o slot green).
 apiVersion: v1
 kind: Service
 metadata:
@@ -149,7 +149,7 @@ spec:
     - port: 80
       targetPort: 5000
 ---
-# Production Service: the switch pipeline flips its selector color.
+# Service de produção: o pipeline de switch troca a cor do selector dele.
 apiVersion: v1
 kind: Service
 metadata:
@@ -166,8 +166,8 @@ spec:
     - port: 80
       targetPort: 5000
 ---
-# One Ingress, three hosts: production (switched via the Service selector) and one
-# stable host per color for direct testing before the switch.
+# Um Ingress, três hosts: produção (trocada pelo selector do Service) e um host
+# estável por cor, para testar diretamente antes do switch.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

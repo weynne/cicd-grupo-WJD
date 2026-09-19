@@ -1,22 +1,22 @@
-# ABOUTME: Code owners for the WJD group repository.
-# ABOUTME: Combined with "Require review from Code Owners", makes review mandatory.
+# ABOUTME: Donos do código do repositório do grupo WJD.
+# ABOUTME: Combinado com "Require review from Code Owners", torna a revisão obrigatória.
 #
-# When a pull request touches a path, GitHub automatically assigns the matching
-# owners as reviewers.
+# Quando um pull request altera um caminho, o GitHub atribui automaticamente os
+# donos correspondentes como revisores.
 #
-# ORDER MATTERS: the last rule that matches is the one that applies.
+# A ORDEM IMPORTA: vale a última regra que corresponde ao caminho.
 #
-# Two principles here. Each area has a maintainer alongside the repo owner, so
-# review lands on whoever knows that part. And every rule lists at least two
-# owners: the author of a pull request cannot approve their own pull request, so
-# a single-owner rule would leave every change proposed by that owner without a
-# possible reviewer, blocking the merge.
+# Dois princípios aqui. Cada área tem um mantenedor ao lado do dono do
+# repositório, então a revisão cai em quem conhece aquela parte. E toda regra
+# lista no mínimo dois donos: o autor de um pull request não pode aprovar o
+# próprio pull request, então uma regra de dono único deixaria toda mudança
+# proposta por esse dono sem revisor possível, travando o merge.
 
-# Whole repository: every pull request needs a teammate's approval.
+# Repositório inteiro: todo pull request precisa do aval de um colega.
 *                       @weynne @diegotavares16 @jessicacamarco
 
-# CI/CD workflows.
+# Workflows de CI/CD.
 /.github/workflows/     @weynne @jessicacamarco
 
-# Deployment manifests.
+# Manifestos de deployment.
 /k8s/                   @weynne @jessicacamarco

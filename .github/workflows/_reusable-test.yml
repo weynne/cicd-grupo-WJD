@@ -1,28 +1,29 @@
-# ABOUTME: Reusable workflow holding the test steps shared by the CI pipeline.
-# ABOUTME: Called by ci.yml through `uses:`; never triggered by an event of its own.
+# ABOUTME: Workflow reutilizável com os steps de teste compartilhados pelo CI.
+# ABOUTME: Chamado pelo ci.yml via `uses:`; nunca disparado por evento próprio.
 #
-# Why the _ prefix: convention that flags a support workflow, called by others
-# via `uses:` and never triggered by its own event.
+# Por que o prefixo _: convenção que sinaliza workflow de apoio, chamado por
+# outro via `uses:` e nunca disparado por evento próprio.
 #
-# Division of responsibility: the MATRIX lives in the caller (ci.yml), the TEST
-# LOGIC lives here. Changing the tested versions does not touch these steps, and
-# changing these steps does not touch the versions.
+# Divisão de responsabilidade: a MATRIX vive no chamador (ci.yml), a LÓGICA DE
+# TESTE vive aqui. Mudar as versões testadas não encosta nestes steps, e mudar
+# estes steps não encosta nas versões.
 #
-# Reference: docs/ci-pipeline.md
+# Referência: docs/ci-pipeline.md
 
 name: Reusable — Test
 
-# workflow_call is what makes this file callable from another workflow.
+# É o workflow_call que torna este arquivo chamável por outro workflow.
 on:
   workflow_call:
     inputs:
       python-version:
-        description: 'Python version used to run the tests'
+        description: 'Versão do Python usada para rodar os testes'
         type: string
         required: true
 
-# security-events: write is required to upload the Trivy SARIF report to the
-# Security tab. The caller grants it on the job that calls this workflow.
+# security-events: write é necessário para enviar o relatório SARIF do Trivy
+# para a aba Security. Quem concede é o chamador, no job que chama este
+# workflow.
 permissions:
   contents: read
   security-events: write
@@ -40,12 +41,12 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
-      # Dependency cache. The key includes the Python version and the hash of
+      # Cache de dependências. A chave inclui a versão do Python e o hash dos
       # requirements*.txt:
-      #   - same key as a previous run -> cache hit, nothing is downloaded
-      #   - different key              -> miss, but restore-keys pulls a nearby
-      #                                   cache and reuses part of the install
-      # The point is not saving machine minutes, it is fast feedback on the PR.
+      #   - chave igual à de uma execução anterior -> acerto, nada é baixado
+      #   - chave diferente -> erro de cache, mas o restore-keys puxa um cache
+      #                        próximo e aproveita parte da instalação
+      # O objetivo não é economizar minuto de máquina: é retorno rápido no PR.
       - name: Cache pip downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -59,21 +60,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
-      # Trivy sees more than pip-audit: on top of the Python libraries it also
-      # covers the operating system packages of the base image.
+      # O Trivy enxerga mais que o pip-audit: além das bibliotecas Python, ele
+      # cobre os pacotes do sistema operacional da imagem base.
       #
-      # exit-code: '1' is what turns the scan into a GATE. Without it Trivy only
-      # reports and the pipeline stays green with a known vulnerability.
-      # ignore-unfixed: true drops CVEs with no patch available, which would
-      # otherwise keep the build red forever with nothing to do about it.
-      # format: sarif feeds the Security > Code scanning tab.
+      # exit-code: '1' é o que transforma o scan em PORTÃO. Sem isso o Trivy só
+      # relata, e o pipeline segue verde com uma vulnerabilidade conhecida.
+      # ignore-unfixed: true descarta CVE sem correção publicada, que de outro
+      # modo deixaria a build vermelha para sempre sem nada a fazer.
+      # format: sarif alimenta a aba Security > Code scanning.
       #
-      # severity starts at MEDIUM because a HIGH,CRITICAL threshold would let
-      # through the exact class of vulnerability this project cares about: the
-      # requests CVEs that pip-audit rejects are all rated MEDIUM by Trivy. Two
-      # gates disagreeing on the same dependency is worse than one strict gate.
-      # ignore-unfixed keeps the extra strictness actionable: only findings with
-      # a published fix can ever break the build.
+      # A severidade começa em MEDIUM porque um corte em HIGH,CRITICAL deixaria
+      # passar exatamente a classe de vulnerabilidade que importa aqui: os CVEs
+      # do requests que o pip-audit reprova são todos MEDIUM para o Trivy. Dois
+      # portões discordando sobre a mesma dependência é pior que um portão
+      # rigoroso. O ignore-unfixed mantém esse rigor acionável: só achado com
+      # correção publicada consegue quebrar a build.
       - name: Scan dependencies and manifests (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
@@ -85,13 +86,13 @@ jobs:
           format: sarif
           output: trivy-results.sarif
 
-      # if: always() is required here. The step above exits 1 when it finds a
-      # vulnerability, and without always() the report would never reach the
-      # Security tab exactly when there is something to report.
+      # O if: always() é obrigatório aqui. O step acima sai com 1 quando acha
+      # vulnerabilidade, e sem o always() o relatório nunca chegaria à aba
+      # Security exatamente quando há algo para relatar.
       #
-      # category separates the three matrix runs. Uploading several SARIF files
-      # for the same commit without a category makes them overwrite each other,
-      # and concurrent uploads can collide.
+      # O category separa as três execuções da matrix. Enviar vários SARIF do
+      # mesmo commit sem category faz um sobrescrever o outro, e envios
+      # simultâneos podem colidir.
       - name: Upload Trivy report to the Security tab
         if: always()
         uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4.38.0
@@ -102,10 +103,10 @@ jobs:
       - name: Run tests (pytest)
         run: pytest -v
 
-      # Security gate (shift-left): pip-audit queries the PyPI/OSV advisory
-      # database and fails the job when a dependency has a known CVE with a fix
-      # available. The -r flag keeps the gate focused on PRODUCTION
-      # dependencies: without it, a CVE in pytest or ruff would break the
-      # application pipeline.
+      # Portão de segurança (shift-left): o pip-audit consulta a base de
+      # advisories do PyPI/OSV e reprova o job quando uma dependência tem CVE
+      # conhecido com correção disponível. O -r mantém o portão focado nas
+      # dependências de PRODUÇÃO: sem ele, um CVE no pytest ou no ruff derrubaria
+      # o pipeline da aplicação.
       - name: Audit dependencies (pip-audit)
         run: pip-audit -r requirements.txt
