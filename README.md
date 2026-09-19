@@ -60,6 +60,8 @@ consertá-la passa a ter prioridade sobre qualquer funcionalidade nova.
   - [3. Aprovar o deploy em staging](#3-aprovar-o-deploy-em-staging)
   - [4. Reproduzir o deploy e o rollback no Kubernetes](#4-reproduzir-o-deploy-e-o-rollback-no-kubernetes)
 - [Evidências da entrega](#evidências-da-entrega)
+- [Checklist — Projeto 2 (CD)](#checklist--projeto-2-cd)
+  - [Teardown](#teardown)
 - [Como o GitHub Actions funciona](#como-o-github-actions-funciona)
 - [Pré-requisitos](#pré-requisitos)
 - [Configuração no GitHub](#configuração-no-github)
@@ -920,6 +922,47 @@ A validação da aplicação é feita pelo endpoint `/healthz`.
 | 9 | Deploy do ambiente **Green** no cluster Kubernetes | [evidência](evidencias/02-blue-green-pagina-web-green.png) |
 | 10 | Troca do tráfego de produção para o ambiente **Green** | [evidência](evidencias/03-blue-green-switch-producao.png) |
 | 11 | **Rollback** do tráfego de produção para o ambiente **Blue** | [evidência](evidencias/04-blue-green-rollback-producao.png) |
+
+---
+
+## Checklist — Projeto 2 (CD)
+
+Os sete itens do enunciado, cada um com a execução que o comprova. Os runs ficam
+no histórico da aba Actions e não dependem da EC2 continuar existindo.
+
+- [x] **Imagem publicada no Docker Hub com tag do commit, via access token** —
+      job `Build and push image` no [run da `main`][r-ci]. Cada build publica
+      duas tags: o nome da versão e o hash curto do commit.
+- [x] **EC2 com kind + ingress-nginx, chave SSH gerada dentro da VM** — o
+      [`Validate SSH to EC2`][r-ssh] comprova o canal. O ambiente é provisionado
+      por [`terraform/`](terraform/README.md), e a chave é gerada pelo
+      `user_data` dentro da própria instância.
+- [x] **Manifestos em `k8s/`: Deployment + Service `ClusterIP` + Ingress** —
+      [`k8s/todolist.yaml`](k8s/todolist.yaml), com `readinessProbe` e
+      `livenessProbe` apontando para `/healthz`.
+- [x] **`cd.yml`: `scp` + `kubectl apply` + `rollout status` + smoke test
+      `/healthz`** — [`Rolling deployment`][r-rolling].
+- [x] **`cd-blue-green.yml` + `cd-blue-green-switch.yml`, com `run-name`
+      dinâmico** — deploy em [`blue`][r-blue] e em [`green`][r-green]. O nome de
+      cada execução carrega a cor e a tag da imagem.
+- [x] **Rollback do Blue/Green demonstrado (re-switch de tráfego)** — o
+      [switch de volta para `blue`][r-rollback], sem reconstruir imagem e sem
+      novo deploy.
+- [x] **README atualizado com a arquitetura de deploy** — seção
+      [Entrega contínua no Kubernetes](#entrega-contínua-no-kubernetes).
+
+[r-ci]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35285826420
+[r-ssh]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35287357377
+[r-rolling]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35287415317
+[r-blue]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35287441606
+[r-green]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35289308232
+[r-rollback]: https://github.com/weynne/cicd-grupo-WJD/actions/runs/35288938189
+
+### Teardown
+
+- [x] `terraform destroy` executado ao fim do laboratório
+- [x] Nenhum Elastic IP alocado e nenhum volume EBS órfão na conta
+- [x] Instância `terminated`, sem custo residual
 
 ---
 

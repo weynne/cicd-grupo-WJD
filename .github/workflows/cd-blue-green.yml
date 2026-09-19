@@ -83,6 +83,15 @@ jobs:
 
             if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
               kubectl apply -f ~/blue-green-bootstrap.yaml
+
+              # O bootstrap sobe as DUAS cores com um placeholder no nome da
+              # imagem, e o set image mais abaixo só corrige a cor deste deploy.
+              # Sem corrigir as duas aqui, a outra fica em InvalidImageName, o
+              # Service dela nunca ganha endpoint, e o host daquela cor responde
+              # 503 até alguém implantá-la. As duas nascem na mesma versão; o
+              # deploy seguinte é que as separa.
+              kubectl set image deployment/todolist-blue  todolist="${IMAGE}" -n "${NS}"
+              kubectl set image deployment/todolist-green todolist="${IMAGE}" -n "${NS}"
             fi
 
             if ! kubectl get secret dockerhub-secret -n "${NS}" >/dev/null 2>&1; then
